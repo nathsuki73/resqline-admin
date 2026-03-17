@@ -126,16 +126,16 @@ const SOS_FEED_ITEMS: SosFeedItem[] = [
     time: "0:52",
     incident: {
       id: "901",
-      incidentType: "SOS Alert - Location Ping",
+      incidentType: "SOS Alert - Possible Structure Fire",
       location: "Brgy. Pag-asa, Quezon City",
       reporter: "Maria Santos",
-      reporterContact: "",
+      reporterContact: "+63 917 123 4567",
       department: "PDRRMO",
       severity: "Critical",
       status: "submitted",
       time: "0:52",
-      reporterDescription: "Initial SOS location ping received. Awaiting additional caller details.",
-      internalNote: "Location-first SOS. Verify scene and establish caller contact on arrival.",
+      reporterDescription: "SOS received with partial voice note: may makapal na usok at may na-trap sa loob. Caller sent location first before full report details.",
+      internalNote: "Location-first SOS. Verify scene, call reporter immediately, and capture photos/video evidence on arrival.",
     },
   },
   {
@@ -145,16 +145,16 @@ const SOS_FEED_ITEMS: SosFeedItem[] = [
     time: "1:24",
     incident: {
       id: "902",
-      incidentType: "SOS Alert - Location Ping",
+      incidentType: "SOS Alert - Medical Distress",
       location: "Commonwealth Ave, QC",
       reporter: "Jose Reyes",
-      reporterContact: "",
+      reporterContact: "+63 917 222 0111",
       department: "PDRRMO",
       severity: "Critical",
       status: "submitted",
       time: "1:24",
-      reporterDescription: "SOS triggered with location only. No additional user narrative yet.",
-      internalNote: "Dispatch nearest available unit for welfare check and incident verification.",
+      reporterDescription: "SOS triggered. Caller texted: nahihirapan huminga ang kasama, exact medical details not yet provided.",
+      internalNote: "Dispatch nearest available unit for welfare check and EMS triage. Gather scene photos and caller condition details.",
     },
   },
 ];
@@ -297,6 +297,9 @@ const TriageFeed: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Do not override SOS selections with report fallback logic.
+    if (activeCardId.startsWith("sos-")) return;
+
     // If current selection is filtered out, move focus to first visible card.
     // This prevents stale selection IDs when responders switch department tabs.
     const isActiveReportVisible = filteredReportItems.some((item) => item.id === activeCardId);
