@@ -24,10 +24,13 @@ export type BridgeNoteUpdate = {
 const INCIDENT_STORAGE_KEY = "resqline.activeIncident";
 const ACTION_STORAGE_KEY = "resqline.pendingIncidentAction";
 const NOTES_STORAGE_KEY = "resqline.incidentNotesById";
+// This bridge intentionally uses localStorage + browser events as a temporary state bus.
+// TODO(API): Replace with server-backed state (React Query/SWR + websocket updates) once endpoints are stable.
 
 export const INCIDENT_SELECTED_EVENT = "resqline:incident-selected";
 export const INCIDENT_ACTION_EVENT = "resqline:incident-action";
 export const INCIDENT_NOTE_UPDATED_EVENT = "resqline:incident-note-updated";
+// Event names are public contracts across Dashboard components. Keep stable to avoid silent desync.
 
 const getIncidentNotesById = (): Record<string, string> => {
 	if (typeof window === "undefined") return {};
@@ -58,6 +61,7 @@ export const setIncidentNoteForId = (id: string, note: string) => {
 	setIncidentNotesById(nextNotesById);
 	window.dispatchEvent(new CustomEvent<BridgeNoteUpdate>(INCIDENT_NOTE_UPDATED_EVENT, { detail: { id, note } }));
 };
+// TODO(API): Mirror this update through PATCH /incidents/:id/internal-note and emit real-time updates via socket.
 
 export const getActiveIncident = (): BridgeIncident | null => {
 	if (typeof window === "undefined") return null;
@@ -77,12 +81,14 @@ export const setActiveIncident = (incident: BridgeIncident) => {
 	window.localStorage.setItem(INCIDENT_STORAGE_KEY, JSON.stringify(nextIncident));
 	window.dispatchEvent(new CustomEvent<BridgeIncident>(INCIDENT_SELECTED_EVENT, { detail: nextIncident }));
 };
+// TODO(API): Persist active incident context in route/query state or global store instead of localStorage.
 
 export const queueIncidentAction = (action: BridgeActionType) => {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(ACTION_STORAGE_KEY, action);
 	window.dispatchEvent(new CustomEvent<BridgeActionType>(INCIDENT_ACTION_EVENT, { detail: action }));
 };
+// TODO(API): Replace queued action localStorage with explicit command endpoint + optimistic UI flow.
 
 export const consumeQueuedIncidentAction = (): BridgeActionType | null => {
 	if (typeof window === "undefined") return null;

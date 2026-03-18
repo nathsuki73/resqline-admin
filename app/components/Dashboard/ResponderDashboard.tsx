@@ -8,6 +8,8 @@ import { useState } from "react";
 
 export default function ResponderDashboard() {
   const [showFullMap, setShowFullMap] = useState(false);
+  // Layout shell intentionally keeps feed/header/detail/map as independent regions.
+  // This makes it safe to swap data sources without rewriting structural composition.
 
   return (
     // Outer Wrapper: Full screen height, no scroll on the body
@@ -33,6 +35,7 @@ export default function ResponderDashboard() {
       </main>
 
       {/* THE UNIFIED FULL SCREEN VIEW */}
+      {/* TODO(API): If deep-linking to full map is needed, sync this state with route query params. */}
       {showFullMap && (
         <OperationalMapView onClose={() => setShowFullMap(false)} />
       )}

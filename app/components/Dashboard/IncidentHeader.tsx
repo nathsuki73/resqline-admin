@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   Send,
   Check,
   Clock,
   Star,
   CheckCircle2,
+  X,
   ChevronRight,
 } from "lucide-react";
 import {
@@ -15,6 +17,13 @@ import {
   type BridgeActionType,
   type BridgeIncident,
 } from "./incidentBridge";
+import DispatchUnitModal, {
+  DEFAULT_AVAILABLE_UNITS,
+  DEFAULT_DEPLOYED_UNITS,
+} from "./DispatchUnitModal";
+import useModalDissolve from "../settings/ui/useModalDissolve";
+
+const MODAL_EXIT_MS = 260;
 
 const DEFAULT_INCIDENT: BridgeIncident = {
   id: "0441",
@@ -29,21 +38,33 @@ const DEFAULT_INCIDENT: BridgeIncident = {
   reporterDescription: "Malaking sunog sa 3-storey building sa may Pag-asa.",
   internalNote: "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
 };
+// TODO(API): Replace fallback with latest selected incident payload from dashboard bootstrap endpoint.
 
 const IncidentHeader = () => {
   const [incident, setIncident] = useState<BridgeIncident>(DEFAULT_INCIDENT);
   const [lastActionMessage, setLastActionMessage] = useState<string>("");
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
   const runAction = (action: BridgeActionType) => {
+    // Keep action side-effects centralized so queue-driven and button-driven actions remain identical.
     if (action === "dispatch") {
-      setLastActionMessage(`Dispatch initiated for report #${incident.id}.`);
+      setIsDispatchModalOpen(true);
       return;
     }
 
-    setLastActionMessage(`Report #${incident.id} was marked for rejection review.`);
+    // TODO(API): POST /incidents/:id/reject with actor + reason when rejection workflow is finalized.
+    setLastActionMessage(`Report #${incident.id} rejected.`);
+  };
+
+  const handleDispatchUnits = (selectedUnitIds: string[], _note: string) => {
+    // TODO: Call API to dispatch units
+    // await dispatchUnitsAPI(incident.id, selectedUnitIds, _note);
+    setLastActionMessage(`Dispatch initiated for report #${incident.id}. ${selectedUnitIds.length} unit(s) dispatched.`);
   };
 
   useEffect(() => {
+    // Bridge subscriptions keep header decoupled from feed implementation details.
     const current = getActiveIncident();
     if (current) setIncident(current);
 
@@ -100,7 +121,7 @@ const IncidentHeader = () => {
           </button>
           <button
             type="button"
-            onClick={() => runAction("reject")}
+            onClick={() => setIsRejectModalOpen(true)}
             className="ui-btn border border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red) hover:bg-[rgba(229,57,53,0.2)]"
           >
             Reject
@@ -143,6 +164,30 @@ const IncidentHeader = () => {
           variant={statusStep === 4 ? "active" : "disabled"}
         />
       </div>
+
+      {/* Dispatch Unit Modal */}
+      <DispatchUnitModal
+        isOpen={isDispatchModalOpen}
+        onClose={() => setIsDispatchModalOpen(false)}
+        incidentId={`RPT-2026-${incident.id}`}
+        incidentType={incident.incidentType}
+        location={incident.location}
+        coordinates="Coordinates from incident geolocation"
+        severity={`${incident.severity} - SOS`}
+        availableUnits={DEFAULT_AVAILABLE_UNITS}
+        deployedUnits={DEFAULT_DEPLOYED_UNITS}
+        onDispatch={handleDispatchUnits}
+      />
+
+      <RejectIncidentModal
+        isOpen={isRejectModalOpen}
+        onCancel={() => setIsRejectModalOpen(false)}
+        onConfirm={() => {
+          setIsRejectModalOpen(false);
+          runAction("reject");
+        }}
+        reportTitle={incident.incidentType}
+      />
     </div>
   );
 };
@@ -169,6 +214,69 @@ const StatusPill: React.FC<StatusPillProps> = ({ label, icon, variant }) => {
     >
       {icon}
       <span>{label}</span>
+    </div>
+  );
+};
+
+const RejectIncidentModal = ({
+  isOpen,
+  onCancel,
+  onConfirm,
+  reportTitle,
+}: {
+  isOpen: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  reportTitle: string;
+}) => {
+  const { shouldRender, isVisible } = useModalDissolve(isOpen, MODAL_EXIT_MS);
+
+  if (!shouldRender) return null;
+
+  return (
+    <div
+      className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 p-4 ${
+        isVisible ? "is-open" : "is-closed"
+      }`}
+    >
+      <div
+        className={`modal-card-dissolve w-full max-w-sm rounded-2xl border border-(--color-border-1) bg-(--color-surface-1) p-5 shadow-xl ${
+          isVisible ? "is-open" : "is-closed"
+        }`}
+      >
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red)">
+              <AlertTriangle size={16} />
+            </div>
+            <h3 className="text-lg font-semibold text-(--color-text-1)">Reject Incident</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md p-1.5 text-(--color-text-3) transition-colors hover:bg-(--color-surface-2) hover:text-(--color-text-1)"
+            aria-label="Close reject modal"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <p className="text-sm text-(--color-text-2)">Reject this incident now?</p>
+        <p className="mt-1 text-xs text-(--color-text-3)">{reportTitle}</p>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="ui-btn ui-btn-secondary">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="ui-btn border border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red) hover:bg-[rgba(229,57,53,0.2)]"
+          >
+            Reject Now
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

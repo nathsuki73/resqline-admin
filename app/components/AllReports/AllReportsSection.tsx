@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 
 import useModalDissolve from "../settings/ui/useModalDissolve";
+import DispatchUnitModal, {
+	DEFAULT_AVAILABLE_UNITS,
+	DEFAULT_DEPLOYED_UNITS,
+} from "../Dashboard/DispatchUnitModal";
 import {
 	INCIDENT_NOTE_UPDATED_EVENT,
 	getIncidentNoteForId,
@@ -272,12 +276,12 @@ const GenerateReportModal = ({
 
 	return (
 		<div
-			className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm ${
+			className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 p-4 ${
 				isVisible ? "is-open" : "is-closed"
 			}`}
 		>
 			<div
-				className={`modal-card-dissolve w-full max-w-md rounded-2xl border border-(--color-border-1) bg-(--color-surface-1) shadow-2xl ${
+				className={`modal-card-dissolve w-full max-w-md rounded-2xl border border-(--color-border-1) bg-(--color-surface-1) shadow-xl ${
 					isVisible ? "is-open" : "is-closed"
 				}`}
 			>
@@ -357,12 +361,12 @@ const RejectConfirmModal = ({
 
 	return (
 		<div
-			className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm ${
+			className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 p-4 ${
 				isVisible ? "is-open" : "is-closed"
 			}`}
 		>
 			<div
-				className={`modal-card-dissolve w-full max-w-sm rounded-2xl border border-(--color-border-1) bg-(--color-surface-1) p-5 shadow-2xl ${
+				className={`modal-card-dissolve w-full max-w-sm rounded-2xl border border-(--color-border-1) bg-(--color-surface-1) p-5 shadow-xl ${
 					isVisible ? "is-open" : "is-closed"
 				}`}
 			>
@@ -433,6 +437,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 	const [noteSaveStateByReportId, setNoteSaveStateByReportId] = useState<Record<string, "unsaved" | "saving" | "saved">>({});
 	const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 	const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+	const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
 
 	const reportInFocus = useMemo(
 		() => reports.find((report) => report.id === activeReportId) ?? null,
@@ -629,6 +634,47 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		syncActiveIncidentToDashboard(reportInFocus);
 		queueIncidentAction(action);
 		onOpenDashboard?.();
+	};
+
+	const openDispatchModal = () => {
+		if (!reportInFocus) return;
+		if (activeReportId && noteSaveStateByReportId[activeReportId] === "unsaved") {
+			saveFocusedReportInternalNote();
+		}
+		syncActiveIncidentToDashboard(reportInFocus);
+		setIsDispatchModalOpen(true);
+	};
+
+	const handleDispatchFromAllReports = (selectedUnitIds: string[], note: string) => {
+		if (!reportInFocus) return;
+		// TODO: Wire to API: dispatch selected units for reportInFocus.id from All Reports context
+		setReports((prev) =>
+			prev.map((report) =>
+				report.id === reportInFocus.id
+					? {
+						...report,
+						status: "in-progress",
+						internalNote: note.trim().length > 0 ? note.trim() : report.internalNote,
+					}
+					: report
+			)
+		);
+		queueIncidentAction("dispatch");
+		setIsDispatchModalOpen(false);
+		if (activeReportId) {
+			setDraftNotesByReportId((prev) => ({
+				...prev,
+				[activeReportId]: note.trim().length > 0 ? note.trim() : prev[activeReportId] ?? "",
+			}));
+			setNoteSaveStateByReportId((prev) => ({ ...prev, [activeReportId]: "saved" }));
+		}
+		if (selectedUnitIds.length > 0) {
+			syncActiveIncidentToDashboard({
+				...reportInFocus,
+				status: "in-progress",
+				internalNote: note.trim().length > 0 ? note.trim() : reportInFocus.internalNote,
+			});
+		}
 	};
 
 	const openFullViewInDashboard = () => {
@@ -877,7 +923,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 												<button type="button" onClick={openFullViewInDashboard} className="ui-btn ui-btn-primary px-3 py-1.5 text-[10px]">
 													Full View
 												</button>
-												<button type="button" onClick={() => triggerDashboardAction("dispatch")} className="ui-btn ui-btn-secondary px-3 py-1.5 text-[10px]">
+												<button type="button" onClick={openDispatchModal} className="ui-btn ui-btn-secondary px-3 py-1.5 text-[10px]">
 													Dispatch
 												</button>
 												<button
@@ -958,6 +1004,18 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 					triggerDashboardAction("reject");
 				}}
 				reportTitle={reportInFocus?.incidentType ?? ""}
+			/>
+			<DispatchUnitModal
+				isOpen={isDispatchModalOpen}
+				onClose={() => setIsDispatchModalOpen(false)}
+				incidentId={reportInFocus ? `RPT-2026-${reportInFocus.id}` : "RPT-2026-0000"}
+				incidentType={reportInFocus?.incidentType ?? "Incident"}
+				location={reportInFocus?.location ?? "Unknown location"}
+				coordinates="Coordinates from incident geolocation"
+				severity={reportInFocus ? `${severityLabel[reportInFocus.severity]} - SOS` : "Critical - SOS"}
+				availableUnits={DEFAULT_AVAILABLE_UNITS}
+				deployedUnits={DEFAULT_DEPLOYED_UNITS}
+				onDispatch={handleDispatchFromAllReports}
 			/>
 		</>
 	);

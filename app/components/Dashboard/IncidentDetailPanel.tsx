@@ -24,6 +24,8 @@ const DEFAULT_INCIDENT: BridgeIncident = {
   reporterDescription: "Malaking sunog sa 3-storey building sa may Pag-asa. May naririnig pang sigaw sa loob.",
   internalNote: "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
 };
+// TODO(API): Replace with server-provided active incident fallback from GET /incidents/:id.
+// Keep as local fallback so UI still renders during cold starts or offline sessions.
 
 // --- Sub-Components ---
 
@@ -44,6 +46,7 @@ const InfoCard = ({
   label: string;
   value: string;
   color?: string;
+  cardClass?: string;
 }) => (
   <div className="rounded-lg border border-(--color-border-1) bg-(--color-surface-2) p-3">
     <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-(--color-text-4)">
@@ -87,12 +90,15 @@ const IncidentDetailPanel = () => {
   const [expandedImage, setExpandedImage] = useState<number | null>(null);
 
   const hydrateIncidentNote = (nextIncident: BridgeIncident) => {
+    // Bridge note sync keeps unsaved panel transitions predictable between Dashboard and All Reports.
     const syncedNote = getIncidentNoteForId(nextIncident.id);
     if (syncedNote === null) return nextIncident;
     return { ...nextIncident, internalNote: syncedNote };
   };
 
   useEffect(() => {
+    // Subscribe to cross-panel incident selection and note updates.
+    // This keeps detail panel reactive without direct parent prop drilling.
     const current = getActiveIncident();
     if (current) {
       const hydrated = hydrateIncidentNote(current);
@@ -131,6 +137,8 @@ const IncidentDetailPanel = () => {
   const saveResponderNote = () => {
     setNoteSaveState("saving");
 
+    // TODO(API): Persist dispatcher note via PATCH /incidents/:id/internal-note
+    // Local bridge update remains for optimistic UI and cross-view sync.
     setIncidentNoteForId(incident.id, responderNoteDraft);
 
     const updatedIncident = {
@@ -181,14 +189,15 @@ const IncidentDetailPanel = () => {
         <InfoCard
           label="Severity"
           value={`${incident.severity} · SOS`}
-          color="text-(--color-text-red)"
+          color="text-(--color-red)"
+          cardClass="border-(--color-red-border) bg-(--color-red-glow)"
         />
         <InfoCard label="Department" value={incident.department} />
         <InfoCard label="Reported" value={`${incident.time} Today`} />
       </div>
 
       {/* Media Section */}
-      {/* TODO: Replace mock media with API call to fetch incident.mediaItems from backend */}
+      {/* TODO(API): Replace mock media with GET /incidents/:id/media and map to image/video thumbnails */}
       <SectionHeader title="Media" />
       <div className="mb-6 grid grid-cols-2 gap-3">
         <div 
@@ -212,7 +221,7 @@ const IncidentDetailPanel = () => {
       </div>
 
       {/* AI Analysis */}
-      {/* TODO: Replace mock confidence data with API call to fetch AI analysis from backend for incident.id */}
+      {/* TODO(API): Replace with GET /incidents/:id/ai-analysis and preserve this confidence-bar schema */}
       <SectionHeader title="AI Analysis" />
       <div className="mb-6 rounded-xl border-2 border-(--color-blue-border) bg-linear-to-br from-[rgba(30,136,229,0.08)] to-(--color-surface-2) p-5 shadow-lg shadow-blue-500/10">
         <div className="flex items-center justify-between mb-4">
@@ -227,22 +236,22 @@ const IncidentDetailPanel = () => {
         <ConfidenceBar
           label="Structure fire detected"
           value={97}
-          colorClass="bg-red-500"
+          colorClass="bg-[var(--color-red)]"
         />
         <ConfidenceBar
           label="Multi-storey building"
           value={89}
-          colorClass="bg-orange-500"
+          colorClass="bg-[var(--color-orange)]"
         />
         <ConfidenceBar
           label="Active flames visible"
           value={84}
-          colorClass="bg-orange-500"
+          colorClass="bg-[var(--color-orange-dim)]"
         />
         <ConfidenceBar
           label="Civilians possibly trapped"
           value={61}
-          colorClass="bg-yellow-500"
+          colorClass="bg-[var(--color-amber)]"
         />
       </div>
 
@@ -253,7 +262,7 @@ const IncidentDetailPanel = () => {
       </div>
 
       {/* Responder Notes */}
-      {/* TODO: Replace note storage with API call to save/persist responder notes to backend for incident.id */}
+      {/* TODO(API): Hydrate and persist notes from incident detail endpoint with optimistic update fallback */}
       <SectionHeader title="Responder Note - Dispatcher Only" />
       <div className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4">
         <textarea

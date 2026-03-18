@@ -17,6 +17,7 @@ interface IncidentMapProps {
 }
 
 const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
+  // View state is local to keep map panning/zooming isolated from global dashboard rerenders.
   const [viewState, setViewState] = useState({
     longitude: 121.0287,
     latitude: 14.6574,
@@ -34,6 +35,7 @@ const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
     },
     { id: "3", lat: 14.654, lng: 121.033, label: "Grass Fire", type: "Fire" },
   ];
+  // TODO(API): Replace marker seed data with live incidents endpoint + websocket diff updates.
 
   const getMarkerColor = (type: string) => {
     if (type === "SOS") return "bg-(--color-red) ring-(--color-red-border)";
@@ -69,10 +71,11 @@ const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
       <Map
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/dark-v11" // Sleek dark theme
+        mapStyle="mapbox://styles/mapbox/dark-v11" // Keep theme centralized for consistent operations display.
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         style={{ width: "100%", height: "100vh" }}
       >
+        {/* TODO(API): Validate NEXT_PUBLIC_MAPBOX_TOKEN at startup and provide fallback map state if unavailable. */}
         <NavigationControl position="bottom-right" />
 
         {incidents.map((incident) => (
