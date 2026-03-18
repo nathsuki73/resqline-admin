@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AlertsSection from "./components/settings/AlertsSection";
+import AllReportsSection from "./components/AllReports/AllReportsSection";
 import IncidentMap from "./components/Dashboard/IncidentMap";
 import ResponderDashboardShell from "./components/Dashboard/ResponderDashboard";
 import DisplaySection from "./components/settings/DisplaySection";
@@ -34,14 +35,7 @@ export default function ResponderDashboard() {
           </main>
         );
       case "reports":
-        return (
-          <main className="flex h-screen flex-1 items-center justify-center bg-[#191716] p-8">
-            <div className="w-full max-w-xl rounded-2xl border border-[#2a2724] bg-[#1e1c1a] p-6">
-              <h1 className="text-xl font-semibold text-[#f0ede8]">All Reports</h1>
-              <p className="mt-2 text-sm text-[#7a7268]">Report list section is now connected to SideNav and ready for report table integration.</p>
-            </div>
-          </main>
-        );
+        return <AllReportsSection onOpenDashboard={() => setActiveTriageItem("dashboard")} />;
       case "responders":
         return <ResponderSection />;
       default:
