@@ -7,6 +7,7 @@ import ResponderDashboardShell from "./components/Dashboard/ResponderDashboard";
 import DisplaySection from "./components/settings/DisplaySection";
 import ProfileSection from "./components/settings/ProfileSection";
 import RolesSection from "./components/settings/RolesSection";
+import ResponderSection from "./components/Responders/ResponderSection";
 import SettingsNav from "./components/SettingsNav";
 import SideNav, { SideNavPanel, SideNavTriageItem } from "./components/SideNav";
 import TriageFeed from "./components/Dashboard/TriageFeed";
@@ -42,14 +43,7 @@ export default function ResponderDashboard() {
           </main>
         );
       case "responders":
-        return (
-          <main className="flex h-screen flex-1 items-center justify-center bg-[#191716] p-8">
-            <div className="w-full max-w-xl rounded-2xl border border-[#2a2724] bg-[#1e1c1a] p-6">
-              <h1 className="text-xl font-semibold text-[#f0ede8]">Responders</h1>
-              <p className="mt-2 text-sm text-[#7a7268]">Responder management section is now connected to SideNav and ready for team roster integration.</p>
-            </div>
-          </main>
-        );
+        return <ResponderSection />;
       default:
         return <TriageFeed />;
     }
