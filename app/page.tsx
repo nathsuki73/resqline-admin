@@ -18,6 +18,9 @@ export default function ResponderDashboard() {
   const [activeTriageItem, setActiveTriageItem] = useState<SideNavTriageItem>("dashboard");
   const [activeSettingsItem, setActiveSettingsItem] = useState<string>("profile-account");
 
+  // TODO: Replace with API call to detect active SOS incidents from backend
+  const hasSosAlerts = true; // Currently hardcoded; will be dynamic from API
+
   const renderTriageContent = () => {
     switch (activeTriageItem) {
       case "dashboard":
@@ -66,6 +69,7 @@ export default function ResponderDashboard() {
         onPanelChange={setActivePanel}
         onTriageItemSelect={setActiveTriageItem}
         onSettingsItemSelect={setActiveSettingsItem}
+        hasSosAlerts={hasSosAlerts}
       />
       {activePanel === "settings" ? (
         <div className="flex flex-row flex-1">

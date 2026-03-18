@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Phone, Flame, Play, BrainCircuit } from "lucide-react";
-import { getActiveIncident, INCIDENT_SELECTED_EVENT, type BridgeIncident } from "./incidentBridge";
+import { Phone, Flame, Play, BrainCircuit, X } from "lucide-react";
+import {
+  getActiveIncident,
+  getIncidentNoteForId,
+  INCIDENT_NOTE_UPDATED_EVENT,
+  INCIDENT_SELECTED_EVENT,
+  setActiveIncident,
+  setIncidentNoteForId,
+  type BridgeIncident,
+  type BridgeNoteUpdate,
+} from "./incidentBridge";
 
 const DEFAULT_INCIDENT: BridgeIncident = {
   id: "0441",
@@ -19,25 +28,25 @@ const DEFAULT_INCIDENT: BridgeIncident = {
 // --- Sub-Components ---
 
 const SectionHeader = ({ title }: { title: string }) => (
-  <div className="flex items-center gap-2 mb-3">
-    <span className="text-[10px] font-bold tracking-[0.2em] text-gray-600 uppercase whitespace-nowrap">
+  <div className="mb-3 flex items-center gap-2">
+    <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.15em] text-(--color-text-3)">
       {title}
     </span>
-    <div className="h-px w-full bg-gray-800" />
+    <div className="h-px w-full bg-(--color-border-1)" />
   </div>
 );
 
 const InfoCard = ({
   label,
   value,
-  color = "text-gray-300",
+  color = "text-(--color-text-2)",
 }: {
   label: string;
   value: string;
   color?: string;
 }) => (
-  <div className="bg-gray-900/40 border border-gray-800 p-3 rounded-lg">
-    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+  <div className="rounded-lg border border-(--color-border-1) bg-(--color-surface-2) p-3">
+    <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-(--color-text-4)">
       {label}
     </p>
     <p className={`text-xs font-semibold ${color}`}>{value}</p>
@@ -54,11 +63,11 @@ const ConfidenceBar = ({
   colorClass: string;
 }) => (
   <div className="mb-3">
-    <div className="flex justify-between text-[11px] mb-1">
-      <span className="text-gray-400">{label}</span>
-      <span className="font-mono text-gray-300">{value}%</span>
+    <div className="mb-1 flex justify-between text-[11px]">
+      <span className="text-(--color-text-2)">{label}</span>
+      <span className="text-(--color-text-1)">{value}%</span>
     </div>
-    <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-(--color-border-1)">
       <div
         className={`h-full rounded-full ${colorClass}`}
         style={{ width: `${value}%` }}
@@ -71,22 +80,68 @@ const ConfidenceBar = ({
 
 const IncidentDetailPanel = () => {
   const [incident, setIncident] = useState<BridgeIncident>(DEFAULT_INCIDENT);
+  const [responderNoteDraft, setResponderNoteDraft] = useState(
+    DEFAULT_INCIDENT.internalNote ?? ""
+  );
+  const [noteSaveState, setNoteSaveState] = useState<"unsaved" | "saving" | "saved">("saved");
+  const [expandedImage, setExpandedImage] = useState<number | null>(null);
+
+  const hydrateIncidentNote = (nextIncident: BridgeIncident) => {
+    const syncedNote = getIncidentNoteForId(nextIncident.id);
+    if (syncedNote === null) return nextIncident;
+    return { ...nextIncident, internalNote: syncedNote };
+  };
 
   useEffect(() => {
     const current = getActiveIncident();
-    if (current) setIncident(current);
+    if (current) {
+      const hydrated = hydrateIncidentNote(current);
+      setIncident(hydrated);
+      setResponderNoteDraft(hydrated.internalNote ?? "");
+      setNoteSaveState("saved");
+    }
 
     const onIncidentSelected = (event: Event) => {
       const detail = (event as CustomEvent<BridgeIncident>).detail;
-      if (detail) setIncident(detail);
+      if (!detail) return;
+      const hydrated = hydrateIncidentNote(detail);
+      setIncident(hydrated);
+      setResponderNoteDraft(hydrated.internalNote ?? "");
+      setNoteSaveState("saved");
+    };
+
+    const onIncidentNoteUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<BridgeNoteUpdate>).detail;
+      if (!detail || detail.id !== incident.id) return;
+
+      setIncident((prev) => ({ ...prev, internalNote: detail.note }));
+      setResponderNoteDraft(detail.note);
+      setNoteSaveState("saved");
     };
 
     window.addEventListener(INCIDENT_SELECTED_EVENT, onIncidentSelected as EventListener);
+    window.addEventListener(INCIDENT_NOTE_UPDATED_EVENT, onIncidentNoteUpdated as EventListener);
 
     return () => {
       window.removeEventListener(INCIDENT_SELECTED_EVENT, onIncidentSelected as EventListener);
+      window.removeEventListener(INCIDENT_NOTE_UPDATED_EVENT, onIncidentNoteUpdated as EventListener);
     };
-  }, []);
+  }, [incident.id]);
+
+  const saveResponderNote = () => {
+    setNoteSaveState("saving");
+
+    setIncidentNoteForId(incident.id, responderNoteDraft);
+
+    const updatedIncident = {
+      ...incident,
+      internalNote: responderNoteDraft,
+    };
+    setIncident(updatedIncident);
+    setActiveIncident(updatedIncident);
+
+    setNoteSaveState("saved");
+  };
 
   const initials = incident.reporter
     .split(" ")
@@ -98,67 +153,76 @@ const IncidentDetailPanel = () => {
   const incidentTypeShort = incident.incidentType.split(" - ")[0] ?? incident.incidentType;
 
   return (
-    <div className="w-100 bg-[#121212] p-5 h-screen overflow-y-auto custom-scrollbar border-r border-gray-800">
-      {/* Reporter Section */}
-      <SectionHeader title="Reporter" />
-      <div className="flex items-center justify-between bg-gray-900/40 border border-gray-800 p-4 rounded-xl mb-6">
+    <div className="flex h-full min-h-0 w-92.5 flex-col overflow-hidden border-r border-(--color-border-1) bg-(--color-surface-1) text-(--color-text-2)">
+      <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+        {/* Reporter Section */}
+        <SectionHeader title="Reporter" />
+      <div className="mb-6 flex items-center justify-between rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-orange-900/30 border border-orange-500/30 flex items-center justify-center text-orange-500 font-bold text-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-(--color-orange-border) bg-(--color-orange-glow) text-sm font-bold text-(--color-orange)">
             {initials || "RD"}
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-gray-200">
+            <h4 className="text-sm font-semibold text-(--color-text-1)">
               {incident.reporter}
             </h4>
-            <p className="text-xs text-gray-500">{incident.reporterContact || "No contact provided"}</p>
+            <p className="text-xs text-(--color-text-3)">{incident.reporterContact || "No contact provided"}</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 bg-green-900/20 border border-green-700/50 text-green-500 px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-green-900/30 transition-colors cursor-pointer">
+        <button type="button" className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) hover:bg-[rgba(67,160,71,0.2)]">
           <Phone size={14} fill="currentColor" /> Call Now
         </button>
       </div>
 
       {/* Incident Info Grid */}
       <SectionHeader title="Incident Info" />
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <InfoCard label="Type" value={incidentTypeShort} color="text-orange-500" />
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <InfoCard label="Type" value={incidentTypeShort} color="text-(--color-orange)" />
         <InfoCard
           label="Severity"
           value={`${incident.severity} · SOS`}
-          color="text-red-500"
+          color="text-(--color-text-red)"
         />
         <InfoCard label="Department" value={incident.department} />
         <InfoCard label="Reported" value={`${incident.time} Today`} />
       </div>
 
       {/* Media Section */}
+      {/* TODO: Replace mock media with API call to fetch incident.mediaItems from backend */}
       <SectionHeader title="Media" />
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="aspect-video bg-orange-950/20 border border-orange-900/30 rounded-lg flex flex-col items-center justify-center relative cursor-pointer hover:bg-orange-950/30 transition-all">
-          <Flame size={24} className="text-orange-500/50" />
-          <span className="absolute bottom-2 left-2 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-gray-300">
+      <div className="mb-6 grid grid-cols-2 gap-3">
+        <div 
+          onClick={() => setExpandedImage(0)}
+          className="relative flex aspect-video cursor-pointer flex-col items-center justify-center rounded-lg border border-(--color-orange-border) bg-(--color-orange-glow) transition-all hover:bg-[rgba(245,124,0,0.18)] hover:scale-105"
+        >
+          <Flame size={24} className="text-(--color-orange)/60" />
+          <span className="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[9px] text-(--color-text-2)">
             Photo · 2.3MB
           </span>
         </div>
-        <div className="aspect-video bg-blue-950/20 border border-blue-900/30 rounded-lg flex flex-col items-center justify-center relative cursor-pointer hover:bg-blue-950/30 transition-all">
-          <Play size={24} className="text-blue-500/50" fill="currentColor" />
-          <span className="absolute bottom-2 left-2 text-[9px] bg-black/60 px-1.5 py-0.5 rounded text-gray-300">
-            Video · 12.1MB
+        <div 
+          onClick={() => setExpandedImage(1)}
+          className="relative flex aspect-video cursor-pointer flex-col items-center justify-center rounded-lg border border-(--color-orange-border) bg-(--color-orange-glow) transition-all hover:bg-[rgba(245,124,0,0.18)] hover:scale-105"
+        >
+          <Flame size={24} className="text-(--color-orange)/60" />
+          <span className="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[9px] text-(--color-text-2)">
+            Photo · 1.8MB
           </span>
         </div>
       </div>
 
       {/* AI Analysis */}
+      {/* TODO: Replace mock confidence data with API call to fetch AI analysis from backend for incident.id */}
       <SectionHeader title="AI Analysis" />
-      <div className="bg-[#0f1115] border border-blue-900/20 p-4 rounded-xl mb-6 shadow-inner">
+      <div className="mb-6 rounded-xl border-2 border-(--color-blue-border) bg-linear-to-br from-[rgba(30,136,229,0.08)] to-(--color-surface-2) p-5 shadow-lg shadow-blue-500/10">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-blue-400">
+          <div className="flex items-center gap-2 text-(--color-text-blue)">
             <BrainCircuit size={16} />
-            <span className="text-[11px] font-bold uppercase tracking-tight">
+            <span className="text-[11px] font-bold uppercase tracking-wide">
               ResqLine AI — Confidence
             </span>
           </div>
-          <span className="text-[10px] text-gray-500">2:41 PM</span>
+          <span className="text-[10px] text-(--color-text-3)">2:41 PM</span>
         </div>
         <ConfidenceBar
           label="Structure fire detected"
@@ -184,14 +248,69 @@ const IncidentDetailPanel = () => {
 
       {/* Reporter Description */}
       <SectionHeader title="Reporter Description" />
-      <div className="bg-gray-900/20 border border-gray-800 p-4 rounded-xl italic text-xs text-gray-400 leading-relaxed mb-6">
+      <div className="mb-6 rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4 text-xs italic leading-relaxed text-(--color-text-2)">
         &quot;{incident.reporterDescription}&quot;
       </div>
 
-      {/* Internal Notes */}
-      <SectionHeader title="Internal Notes" />
-      <div className="bg-gray-900/40 border border-gray-800 p-4 rounded-xl text-xs text-gray-300 leading-relaxed">
-        {incident.internalNote || "No internal notes yet."}
+      {/* Responder Notes */}
+      {/* TODO: Replace note storage with API call to save/persist responder notes to backend for incident.id */}
+      <SectionHeader title="Responder Note - Dispatcher Only" />
+      <div className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4">
+        <textarea
+          value={responderNoteDraft}
+          onChange={(e) => {
+            setResponderNoteDraft(e.target.value);
+            setNoteSaveState("unsaved");
+          }}
+          rows={4}
+          placeholder="Add responder note..."
+          className="w-full resize-none rounded-lg border border-(--color-border-2) bg-(--color-surface-1) px-3 py-2 text-xs leading-relaxed text-(--color-text-2) placeholder-(--color-text-4) focus:border-(--color-orange-border) focus:outline-none"
+        />
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-[10px] text-(--color-text-3)">
+            {noteSaveState === "unsaved"
+              ? "Unsaved changes"
+              : noteSaveState === "saving"
+              ? "Saving..."
+              : "Saved"}
+          </p>
+          <button
+            type="button"
+            onClick={saveResponderNote}
+            disabled={noteSaveState === "saving"}
+            className="ui-btn ui-btn-primary px-3 py-1.5 text-[10px] disabled:opacity-50"
+          >
+            Save Note
+          </button>
+        </div>
+        </div>
+
+      {/* Expanded Image Modal */}
+      {expandedImage !== null && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setExpandedImage(null)}
+        >
+          <div 
+            className="relative max-h-[90vh] max-w-[90vw] rounded-xl border border-(--color-orange-border) overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setExpandedImage(null)}
+              className="absolute top-4 right-4 z-10 rounded-lg bg-black/50 p-2 hover:bg-black/70 transition-all"
+            >
+              <X size={20} className="text-white" />
+            </button>
+            <div className="flex h-full w-full items-center justify-center bg-(--color-orange-glow) p-4">
+              <Flame size={120} className="text-(--color-orange)/60" />
+              <span className="absolute bottom-4 left-4 rounded bg-black/50 px-3 py-1.5 text-sm text-(--color-text-2)">
+                {expandedImage === 0 ? "Photo · 2.3MB" : "Photo · 1.8MB"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

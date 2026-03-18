@@ -11,7 +11,7 @@ export default function ResponderDashboard() {
 
   return (
     // Outer Wrapper: Full screen height, no scroll on the body
-    <div className="flex h-screen w-full flex-row overflow-hidden bg-[#0a0a0a]">
+    <div className="flex h-screen w-full flex-row overflow-hidden bg-(--color-bg)">
       {/* 2. Triage Feed (Fixed Width) */}
       <TriageFeed />
 

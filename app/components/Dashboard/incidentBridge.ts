@@ -16,12 +16,48 @@ export type BridgeIncident = {
 };
 
 export type BridgeActionType = "dispatch" | "reject";
+export type BridgeNoteUpdate = {
+	id: string;
+	note: string;
+};
 
 const INCIDENT_STORAGE_KEY = "resqline.activeIncident";
 const ACTION_STORAGE_KEY = "resqline.pendingIncidentAction";
+const NOTES_STORAGE_KEY = "resqline.incidentNotesById";
 
 export const INCIDENT_SELECTED_EVENT = "resqline:incident-selected";
 export const INCIDENT_ACTION_EVENT = "resqline:incident-action";
+export const INCIDENT_NOTE_UPDATED_EVENT = "resqline:incident-note-updated";
+
+const getIncidentNotesById = (): Record<string, string> => {
+	if (typeof window === "undefined") return {};
+	const raw = window.localStorage.getItem(NOTES_STORAGE_KEY);
+	if (!raw) return {};
+	try {
+		return JSON.parse(raw) as Record<string, string>;
+	} catch {
+		return {};
+	}
+};
+
+const setIncidentNotesById = (notesById: Record<string, string>) => {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notesById));
+};
+
+export const getIncidentNoteForId = (id: string): string | null => {
+	if (typeof window === "undefined") return null;
+	const notesById = getIncidentNotesById();
+	return notesById[id] ?? null;
+};
+
+export const setIncidentNoteForId = (id: string, note: string) => {
+	if (typeof window === "undefined") return;
+	const notesById = getIncidentNotesById();
+	const nextNotesById = { ...notesById, [id]: note };
+	setIncidentNotesById(nextNotesById);
+	window.dispatchEvent(new CustomEvent<BridgeNoteUpdate>(INCIDENT_NOTE_UPDATED_EVENT, { detail: { id, note } }));
+};
 
 export const getActiveIncident = (): BridgeIncident | null => {
 	if (typeof window === "undefined") return null;
@@ -36,8 +72,10 @@ export const getActiveIncident = (): BridgeIncident | null => {
 
 export const setActiveIncident = (incident: BridgeIncident) => {
 	if (typeof window === "undefined") return;
-	window.localStorage.setItem(INCIDENT_STORAGE_KEY, JSON.stringify(incident));
-	window.dispatchEvent(new CustomEvent<BridgeIncident>(INCIDENT_SELECTED_EVENT, { detail: incident }));
+	const syncedNote = getIncidentNoteForId(incident.id);
+	const nextIncident = syncedNote !== null ? { ...incident, internalNote: syncedNote } : incident;
+	window.localStorage.setItem(INCIDENT_STORAGE_KEY, JSON.stringify(nextIncident));
+	window.dispatchEvent(new CustomEvent<BridgeIncident>(INCIDENT_SELECTED_EVENT, { detail: nextIncident }));
 };
 
 export const queueIncidentAction = (action: BridgeActionType) => {

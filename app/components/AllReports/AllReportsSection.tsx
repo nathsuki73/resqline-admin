@@ -15,10 +15,14 @@ import {
 
 import useModalDissolve from "../settings/ui/useModalDissolve";
 import {
+	INCIDENT_NOTE_UPDATED_EVENT,
+	getIncidentNoteForId,
 	queueIncidentAction,
+	setIncidentNoteForId,
 	setActiveIncident,
 	type BridgeActionType,
 	type BridgeIncident,
+	type BridgeNoteUpdate,
 } from "../Dashboard/incidentBridge";
 
 const MODAL_EXIT_MS = 260;
@@ -412,7 +416,12 @@ const getDepartmentClasses = (department: IncidentDepartment) => {
 };
 
 export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard?: () => void }) {
-	const [reports, setReports] = useState<IncidentReport[]>(INITIAL_REPORTS);
+	const [reports, setReports] = useState<IncidentReport[]>(() =>
+		INITIAL_REPORTS.map((report) => {
+			const syncedNote = getIncidentNoteForId(report.id);
+			return syncedNote === null ? report : { ...report, internalNote: syncedNote };
+		})
+	);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [severityFilter, setSeverityFilter] = useState<"all" | IncidentSeverity>("all");
 	const [statusFilter, setStatusFilter] = useState<"all" | IncidentStatus>("all");
@@ -443,6 +452,30 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 			[activeReportId]: prev[activeReportId] ?? "saved",
 		}));
 	}, [activeReportId, reportInFocus]);
+
+	useEffect(() => {
+		const onIncidentNoteUpdated = (event: Event) => {
+			const detail = (event as CustomEvent<BridgeNoteUpdate>).detail;
+			if (!detail) return;
+
+			setReports((prev) =>
+				prev.map((report) => (report.id === detail.id ? { ...report, internalNote: detail.note } : report))
+			);
+
+			setDraftNotesByReportId((prev) => {
+				if (!Object.prototype.hasOwnProperty.call(prev, detail.id)) return prev;
+				return { ...prev, [detail.id]: detail.note };
+			});
+
+			setNoteSaveStateByReportId((prev) => ({ ...prev, [detail.id]: "saved" }));
+		};
+
+		window.addEventListener(INCIDENT_NOTE_UPDATED_EVENT, onIncidentNoteUpdated as EventListener);
+
+		return () => {
+			window.removeEventListener(INCIDENT_NOTE_UPDATED_EVENT, onIncidentNoteUpdated as EventListener);
+		};
+	}, []);
 
 	const filteredReports = useMemo(() => {
 		const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -567,6 +600,8 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		setReports((prev) =>
 			prev.map((report) => (report.id === activeReportId ? { ...report, internalNote: draft } : report))
 		);
+
+		setIncidentNoteForId(activeReportId, draft);
 
 		setNoteSaveStateByReportId((prev) => ({ ...prev, [activeReportId]: "saved" }));
 	};

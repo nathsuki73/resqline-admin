@@ -77,14 +77,14 @@ const IncidentHeader = () => {
   }, [incident.status]);
 
   return (
-    <div className="w-full bg-[#121212] p-4 border-b border-gray-800 shrink-0">
+    <div className="w-full shrink-0 border-b border-(--color-border-1) bg-(--color-surface-1) p-4">
       {/* Top Section */}
-      <div className="flex items-start justify-between mb-4">
+      <div className="mb-4 flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-medium text-gray-100 tracking-tight">
+          <h1 className="text-xl font-semibold tracking-tight text-(--color-text-1)">
             {incident.incidentType}
           </h1>
-          <p className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wider">
+          <p className="mt-0.5 text-[10px] uppercase tracking-widest text-(--color-text-3)">
             RPT-2026-{incident.id} · {incident.reporter} · {incident.time} · {incident.department}
           </p>
         </div>
@@ -93,7 +93,7 @@ const IncidentHeader = () => {
           <button
             type="button"
             onClick={() => runAction("dispatch")}
-            className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-lg shadow-orange-900/20"
+            className="ui-btn ui-btn-primary"
           >
             <Send size={14} fill="currentColor" />
             Dispatch Unit
@@ -101,7 +101,7 @@ const IncidentHeader = () => {
           <button
             type="button"
             onClick={() => runAction("reject")}
-            className="bg-red-950/30 hover:bg-red-900/40 text-red-400 border border-red-900/50 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95"
+            className="ui-btn border border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red) hover:bg-[rgba(229,57,53,0.2)]"
           >
             Reject
           </button>
@@ -109,33 +109,33 @@ const IncidentHeader = () => {
       </div>
 
       {lastActionMessage ? (
-        <div className="mb-3 rounded-md border border-orange-500/20 bg-orange-500/5 px-3 py-2 text-[11px] text-orange-400">
+        <div className="mb-3 rounded-md border border-(--color-orange-border) bg-(--color-orange-glow) px-3 py-2 text-[11px] text-(--color-orange)">
           {lastActionMessage}
         </div>
       ) : null}
 
-      {/* Status Stepper - Now smaller */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      {/* Status Stepper */}
+      <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
         <StatusPill
           label="Submitted"
           icon={<Check size={12} />}
           variant={statusStep > 1 ? "completed" : statusStep === 1 ? "active" : "disabled"}
         />
-        <ChevronRight size={12} className="text-gray-800" />
+        <ChevronRight size={12} className="text-(--color-text-4)" />
 
         <StatusPill
           label="Under Review"
           icon={<Clock size={12} />}
           variant={statusStep > 2 ? "completed" : statusStep === 2 ? "active" : "disabled"}
         />
-        <ChevronRight size={12} className="text-gray-800" />
+        <ChevronRight size={12} className="text-(--color-text-4)" />
 
         <StatusPill
           label="In Progress"
           icon={<Star size={12} />}
           variant={statusStep > 3 ? "completed" : statusStep === 3 ? "active" : "disabled"}
         />
-        <ChevronRight size={12} className="text-gray-800" />
+        <ChevronRight size={12} className="text-(--color-text-4)" />
 
         <StatusPill
           label="Resolved"
@@ -157,15 +157,15 @@ interface StatusPillProps {
 
 const StatusPill: React.FC<StatusPillProps> = ({ label, icon, variant }) => {
   const styles = {
-    completed: "bg-green-950/20 border-green-900/30 text-green-600/90",
+    completed: "border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green)",
     active:
-      "bg-orange-950/30 border-orange-500/50 text-orange-500 ring-1 ring-orange-500/20",
-    disabled: "bg-gray-900/20 border-gray-800/50 text-gray-700",
+      "border-(--color-orange-border) bg-(--color-orange-glow) text-(--color-orange) ring-1 ring-(--color-orange-glow)",
+    disabled: "border-(--color-border-2) bg-(--color-surface-2) text-(--color-text-3)",
   };
 
   return (
     <div
-      className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-[9px] font-bold uppercase tracking-tight transition-all cursor-default ${styles[variant]}`}
+      className={`cursor-default rounded-md border px-2 py-1 text-[9px] font-bold uppercase tracking-wide transition-all ${styles[variant]} flex items-center gap-1.5`}
     >
       {icon}
       <span>{label}</span>

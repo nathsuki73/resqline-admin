@@ -19,6 +19,7 @@ type SideNavProps = {
   onPanelChange: (panel: SideNavPanel) => void;
   onTriageItemSelect: (itemId: SideNavTriageItem) => void;
   onSettingsItemSelect?: (itemId: string) => void;
+  hasSosAlerts?: boolean;
 };
 
 const SideNav: React.FC<SideNavProps> = ({
@@ -27,11 +28,12 @@ const SideNav: React.FC<SideNavProps> = ({
   onPanelChange,
   onTriageItemSelect,
   onSettingsItemSelect,
+  hasSosAlerts = false,
 }) => {
   const isTriagePanel = activePanel === "triage";
 
   const navItems: NavItem[] = [
-    { id: "dashboard", label: "Dashboard", icon: <LayoutGrid size={20} />, badge: false },
+    { id: "dashboard", label: "Dashboard", icon: <LayoutGrid size={20} />, badge: hasSosAlerts },
     { id: "map", label: "Full Map", icon: <Map size={20} />, badge: false },
     { id: "reports", label: "All Reports", icon: <FileText size={20} />, badge: false },
   ];
@@ -71,7 +73,7 @@ const SideNav: React.FC<SideNavProps> = ({
               {item.icon}
 
               {item.badge && (
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-[#171411] bg-red-500" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-(--color-bg) bg-(--color-red) animate-blink-dot" />
               )}
             </button>
             <span className="sidebar-tooltip" role="tooltip">
