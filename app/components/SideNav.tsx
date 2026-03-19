@@ -2,18 +2,26 @@
 import React, { useState } from "react";
 import { LayoutGrid, Map, FileText, Users, Settings, Zap } from "lucide-react";
 
+export type SideNavPanel = "triage" | "settings";
+
 type NavItem = {
+  id: string;
   icon: React.ReactNode;
   badge?: boolean;
 };
 
-const SideNav: React.FC = () => {
+type SideNavProps = {
+  activePanel: SideNavPanel;
+  onPanelChange: (panel: SideNavPanel) => void;
+};
+
+const SideNav: React.FC<SideNavProps> = ({ activePanel, onPanelChange }) => {
   const [activeIndex, setActiveIndex] = useState<number>(0);
 
   const navItems: NavItem[] = [
-    { icon: <LayoutGrid size={20} />, badge: false },
-    { icon: <Map size={20} />, badge: false },
-    { icon: <FileText size={20} />, badge: false },
+    { id: "dashboard", icon: <LayoutGrid size={20} />, badge: false },
+    { id: "map", icon: <Map size={20} />, badge: false },
+    { id: "reports", icon: <FileText size={20} />, badge: false },
   ];
 
   return (
@@ -27,8 +35,11 @@ const SideNav: React.FC = () => {
       <nav className="flex flex-col gap-4">
         {navItems.map((item, index) => (
           <button
-            key={index}
-            onClick={() => setActiveIndex(index)}
+            key={item.id}
+            onClick={() => {
+              setActiveIndex(index);
+              onPanelChange("triage");
+            }}
             className={`relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 
               ${
                 activeIndex === index
@@ -44,7 +55,7 @@ const SideNav: React.FC = () => {
           </button>
         ))}
 
-        <div className="my-2 h-[1px] w-8 bg-gray-800" />
+        <div className="my-2 h-px w-8 bg-gray-800" />
 
         <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl hover:bg-gray-800 hover:text-gray-200">
           <Users size={20} />
@@ -53,7 +64,17 @@ const SideNav: React.FC = () => {
 
       {/* Bottom */}
       <div className="mt-auto flex flex-col items-center gap-4">
-        <button className="cursor-pointer text-gray-500 hover:text-gray-200">
+        <button
+          type="button"
+          onClick={() => onPanelChange("settings")}
+          className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border transition-all duration-200 ${
+            activePanel === "settings"
+              ? "border-orange-500/30 bg-orange-500/10 text-orange-500"
+              : "border-transparent text-gray-500 hover:bg-gray-800 hover:text-gray-200"
+          }`}
+          aria-label="Open settings navigation"
+          aria-pressed={activePanel === "settings"}
+        >
           <Settings size={20} />
         </button>
 
