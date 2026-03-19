@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import SettingsToggleSwitch from "./ui/SettingsToggleSwitch";
 import useModalDissolve from "./ui/useModalDissolve";
+import {
+  readStorageJson,
+  removeStorageItem,
+  writeStorageJson,
+} from "@/app/services/storageUtils";
 
 const MODAL_EXIT_MS = 260;
 const PROFILE_STORAGE_KEY = "resqline.dispatcher.profile";
@@ -480,27 +485,27 @@ export default function ProfileSection() {
   // =========================================================================
 
   useEffect(() => {
-    const storedValue = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!storedValue) {
+    const parsed = readStorageJson<
+      (Partial<ProfileFormData> & { avatarImage?: string | null }) | null
+    >(PROFILE_STORAGE_KEY, null);
+
+    if (!parsed) {
       return;
     }
 
-    try {
-      const parsed = JSON.parse(storedValue) as Partial<ProfileFormData> & {
-        avatarImage?: string | null;
-      };
-
-      setFormData((prev) => ({
-        ...prev,
-        firstName: parsed.firstName ?? prev.firstName,
-        lastName: parsed.lastName ?? prev.lastName,
-        email: parsed.email ?? prev.email,
-        badgeNumber: parsed.badgeNumber ?? prev.badgeNumber,
-      }));
-      setAvatarImage(parsed.avatarImage ?? null);
-    } catch {
-      window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+    if (typeof parsed !== "object") {
+      removeStorageItem(PROFILE_STORAGE_KEY);
+      return;
     }
+
+    setFormData((prev) => ({
+      ...prev,
+      firstName: parsed.firstName ?? prev.firstName,
+      lastName: parsed.lastName ?? prev.lastName,
+      email: parsed.email ?? prev.email,
+      badgeNumber: parsed.badgeNumber ?? prev.badgeNumber,
+    }));
+    setAvatarImage(parsed.avatarImage ?? null);
   }, []);
 
   const handleProfileFieldChange = (field: keyof ProfileFormData, value: string) => {
@@ -532,13 +537,10 @@ export default function ProfileSection() {
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      window.localStorage.setItem(
-        PROFILE_STORAGE_KEY,
-        JSON.stringify({
-          ...formData,
-          avatarImage,
-        })
-      );
+      writeStorageJson(PROFILE_STORAGE_KEY, {
+        ...formData,
+        avatarImage,
+      });
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);

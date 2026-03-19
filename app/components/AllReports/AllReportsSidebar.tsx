@@ -16,8 +16,7 @@ import {
 	statusStep,
 	type IncidentStatusSlug,
 } from "@/app/constants/reportStatus";
-
-type IncidentDepartment = "bfp" | "ctmo" | "pdrmo" | "pnp";
+import { type IncidentDepartment } from "@/app/features/reports/types";
 
 type SidebarReport = {
 	id: string;
@@ -99,8 +98,8 @@ const AllReportsSidebar = ({
 	const draftLength = focusedDraftNote.trim().length;
 	const statusValue = reportInFocus?.status ?? "submitted";
 	const currentStatusStep = statusStep(statusValue as IncidentStatusSlug);
-	const canDispatch = currentStatusStep >= 2 && currentStatusStep < 4;
-	const canResolve = currentStatusStep === 3;
+	const canDispatch = currentStatusStep >= 1 && currentStatusStep < 3;
+	const canResolve = currentStatusStep === 2;
 
 	return (
 		<aside

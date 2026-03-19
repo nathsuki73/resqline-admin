@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import AlertsSection from "./components/settings/AlertsSection";
 import AllReportsSection from "./components/AllReports/AllReportsSection";
-import IncidentMap from "./components/Dashboard/IncidentMap";
 import ResponderDashboardShell from "./components/Dashboard/ResponderDashboard";
 import DisplaySection from "./components/settings/DisplaySection";
 import ProfileSection from "./components/settings/ProfileSection";

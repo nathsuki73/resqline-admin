@@ -39,7 +39,9 @@ describe("reportStatus", () => {
     expect(mapApiStatusToSlug("UNDER_REVIEW")).toBe("under-review");
     expect(mapApiStatusToSlug("inProgress")).toBe("in-progress");
     expect(mapApiStatusToSlug("in-progress")).toBe("in-progress");
-    expect(mapApiStatusToSlug(3)).toBe("in-progress");
-    expect(mapApiStatusToSlug(4)).toBe("resolved");
+    expect(mapApiStatusToSlug(0)).toBe("submitted");
+    expect(mapApiStatusToSlug(2)).toBe("in-progress");
+    expect(mapApiStatusToSlug(3)).toBe("resolved");
+    expect(mapApiStatusToSlug(4)).toBe("rejected");
   });
 });

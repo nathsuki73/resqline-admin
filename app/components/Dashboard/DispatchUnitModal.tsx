@@ -4,7 +4,7 @@ import { CheckCircle2, Send, Truck, X } from "lucide-react";
 import useModalDissolve from "../settings/ui/useModalDissolve";
 import emailjs from "@emailjs/browser";
 import { createPortal } from "react-dom";
-import { fetchReportById } from "@/app/services/reports";
+import { fetchReportById } from "@/app/features/reports/services/reportsApi";
 import {
   mapApiStatusToLabel,
 } from "@/app/constants/reportStatus";

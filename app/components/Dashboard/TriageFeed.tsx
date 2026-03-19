@@ -10,7 +10,7 @@ import {
 import { useReports } from "@/app/hooks/useReports";
 import { StatBlock } from "./TriageFeedComponents/StatBlock";
 import { FeedItem } from "./TriageFeedComponents/FeedItem";
-import { fetchReportById } from "@/app/services/reports";
+import { fetchReportById } from "@/app/features/reports/services/reportsApi";
 import {
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
@@ -23,7 +23,7 @@ import {
   mapResponderStatusToMobileStatus,
   mergeStatusWithoutRegression,
 } from "@/app/constants/reportStatus";
-import { transitionReportStatus } from "@/app/services/reportTransitionService";
+import { transitionReportStatus } from "@/app/features/reports/services/reportTransitionService";
 
 // --- Types ---
 type FeedType = IncidentCategoryType;

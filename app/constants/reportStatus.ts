@@ -13,11 +13,11 @@ export type ReporterMobileStatusSlug =
   | "closed";
 
 const STATUS_STEP: Record<IncidentStatusSlug, number> = {
-  submitted: 1,
-  "under-review": 2,
-  "in-progress": 3,
-  resolved: 4,
-  rejected: 5,
+  submitted: 0,
+  "under-review": 1,
+  "in-progress": 2,
+  resolved: 3,
+  rejected: 4,
 };
 
 const TERMINAL_STATUSES = new Set<IncidentStatusSlug>(["resolved", "rejected"]);
@@ -45,11 +45,11 @@ export const isTerminalStatus = (status: unknown): boolean =>
   TERMINAL_STATUSES.has(mapApiStatusToSlug(status));
 
 const STATUS_ALIASES: Record<IncidentStatusSlug, Array<number | string>> = {
-  submitted: [1, "submitted"],
-  "under-review": [2, "under-review", "underreview"],
-  "in-progress": [3, "in-progress", "inprogress", "dispatched"],
-  resolved: [4, "resolved"],
-  rejected: [5, "rejected"],
+  submitted: [0, "submitted"],
+  "under-review": [1, "under-review", "underreview"],
+  "in-progress": [2, "in-progress", "inprogress", "dispatched"],
+  resolved: [3, "resolved"],
+  rejected: [4, "rejected"],
 };
 
 const normalizeStatusInput = (status: unknown): unknown => {
@@ -107,11 +107,11 @@ export const mapMobileStatusToLabel = (status: unknown): string => {
 };
 
 export const mapSlugToApiStatus = (status: IncidentStatusSlug): number => {
-  if (status === "submitted") return 1;
-  if (status === "under-review") return 2;
-  if (status === "in-progress") return 3;
-  if (status === "resolved") return 4;
-  return 5;
+  if (status === "submitted") return 0;
+  if (status === "under-review") return 1;
+  if (status === "in-progress") return 2;
+  if (status === "resolved") return 3;
+  return 4;
 };
 
 export const canTransitionStatus = (

@@ -4,7 +4,7 @@ import {
   mergeStatusWithoutRegression,
   type IncidentStatusSlug,
   type ReporterMobileStatusSlug,
-} from "../constants/reportStatus";
+} from "../../../constants/reportStatus";
 
 export type SyncSource = "api" | "realtime" | "optimistic";
 

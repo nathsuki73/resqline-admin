@@ -2,7 +2,7 @@ import {
   fetchLocalReportById,
   fetchLocalReports,
   updateLocalReportStatus,
-} from "./localReportsDb";
+} from "../../../services/localReportsDb";
 
 const isLocalDbEnabled = process.env.NEXT_PUBLIC_USE_LOCAL_DB === "true";
 
@@ -107,8 +107,8 @@ export const updateReportStatus = async (id: string, status: number) => {
     return updateLocalReportStatus(id, status);
   }
 
-  if (!Number.isInteger(status) || status < 1 || status > 5) {
-    throw new Error(`Invalid status code: ${status}. Expected integer 1-5.`);
+  if (!Number.isInteger(status) || status < 0 || status > 4) {
+    throw new Error(`Invalid status code: ${status}. Expected integer 0-4.`);
   }
 
   const statusUrl = `${process.env.NEXT_PUBLIC_API_URL}/admin/reports/${id}/status`;
@@ -118,7 +118,6 @@ export const updateReportStatus = async (id: string, status: number) => {
     body: JSON.stringify(status),
   });
 
-  // 🔴 Error Handling
   if (!res.ok) {
     const errorText = await res.text();
 
@@ -145,7 +144,7 @@ export const updateReportStatus = async (id: string, status: number) => {
       };
     }
 
-    console.error(`PATCH status update failed`, {
+    console.error("PATCH status update failed", {
       reportId: id,
       statusCode: res.status,
       statusText: res.statusText,
@@ -159,7 +158,6 @@ export const updateReportStatus = async (id: string, status: number) => {
     throw new Error(`Failed to update report status: ${res.status}`);
   }
 
-  // 🟢 Successful update
   if (res.status === 204 || res.headers.get("content-length") === "0") {
     return null;
   }

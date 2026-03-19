@@ -1,3 +1,9 @@
+import {
+  isBrowserRuntime,
+  readStorageJson,
+  writeStorageJson,
+} from "@/app/services/storageUtils";
+
 type LocalCoordinates = {
   latitude: number;
   longitude: number;
@@ -31,7 +37,7 @@ const seedReports: LocalReportRecord[] = [
     id: "1001",
     description: "Structure fire near market block C",
     category: 3,
-    status: 1,
+    status: 0,
     createdAt: "2026-03-21T08:35:00.000Z",
     reportByName: "Maria Santos",
     reportByPhoneNumber: "+63 917 123 4567",
@@ -55,7 +61,7 @@ const seedReports: LocalReportRecord[] = [
     id: "1002",
     description: "Two-vehicle collision along Commonwealth Ave",
     category: 2,
-    status: 2,
+    status: 1,
     createdAt: "2026-03-21T08:20:00.000Z",
     reportByName: "Rico Dela Cruz",
     reportByPhoneNumber: "+63 927 220 1002",
@@ -79,7 +85,7 @@ const seedReports: LocalReportRecord[] = [
     id: "1003",
     description: "Flooded street with stalled vehicles",
     category: 4,
-    status: 1,
+    status: 0,
     createdAt: "2026-03-21T08:10:00.000Z",
     reportByName: "Ana Reyes",
     reportByPhoneNumber: "+63 939 310 1003",
@@ -103,7 +109,7 @@ const seedReports: LocalReportRecord[] = [
     id: "1004",
     description: "Person collapsed at transport terminal",
     category: 1,
-    status: 3,
+    status: 2,
     createdAt: "2026-03-21T07:58:00.000Z",
     reportByName: "Joel Navarro",
     reportByPhoneNumber: "+63 998 410 1004",
@@ -127,7 +133,7 @@ const seedReports: LocalReportRecord[] = [
     id: "1005",
     description: "Structural damage after wall collapse near depot",
     category: 5,
-    status: 2,
+    status: 1,
     createdAt: "2026-03-21T07:41:00.000Z",
     reportByName: "Liza Fernandez",
     reportByPhoneNumber: "+63 917 550 1005",
@@ -149,8 +155,6 @@ const seedReports: LocalReportRecord[] = [
   },
 ];
 
-const isBrowser = () => typeof window !== "undefined";
-
 const normalizeId = (value: string) => value.replace(/^RPT-2026-/, "");
 
 const clone = (data: LocalReportRecord[]) =>
@@ -165,29 +169,27 @@ const clone = (data: LocalReportRecord[]) =>
   }));
 
 const readRecords = (): LocalReportRecord[] => {
-  if (!isBrowser()) return clone(seedReports);
+  if (!isBrowserRuntime()) return clone(seedReports);
 
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
+  const parsed = readStorageJson<LocalReportRecord[] | null>(STORAGE_KEY, null);
+  if (!parsed) {
     const seeded = clone(seedReports);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+    writeStorageJson(STORAGE_KEY, seeded);
     return seeded;
   }
 
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) throw new Error("Invalid local reports shape");
-    return parsed as LocalReportRecord[];
-  } catch {
+  if (!Array.isArray(parsed)) {
     const seeded = clone(seedReports);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+    writeStorageJson(STORAGE_KEY, seeded);
     return seeded;
   }
+
+  return parsed;
 };
 
 const writeRecords = (records: LocalReportRecord[]) => {
-  if (!isBrowser()) return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  if (!isBrowserRuntime()) return;
+  writeStorageJson(STORAGE_KEY, records);
 };
 
 export const fetchLocalReports = async (): Promise<LocalReportRecord[]> => {

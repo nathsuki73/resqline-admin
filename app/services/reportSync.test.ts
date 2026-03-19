@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeReportCollections, normalizeReportId } from "./reportSync";
+import { mergeReportCollections, normalizeReportId } from "../features/reports/services/reportSync";
 
 describe("reportSync", () => {
   it("normalizes report ids from prefixed and raw values", () => {

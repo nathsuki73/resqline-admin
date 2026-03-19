@@ -1,4 +1,4 @@
-import { fetchReports } from "@/app/services/reports";
+import { fetchReports } from "@/app/features/reports/services/reportsApi";
 import {
   mapResponderStatusToMobileStatus,
   mergeStatusWithoutRegression,
@@ -9,7 +9,7 @@ import {
   normalizeReportId,
   toSyncedReport,
   type TransitionMeta,
-} from "@/app/services/reportSync";
+} from "@/app/features/reports/services/reportSync";
 
 type ReportsState = {
   reports: any[];

@@ -4,16 +4,16 @@ import {
   mapResponderStatusToMobileStatus,
   mapSlugToApiStatus,
   type IncidentStatusSlug,
-} from "@/app/constants/reportStatus";
+} from "../../../constants/reportStatus";
 import {
   applyOptimisticTransition,
   getReportById,
   loadReportsShared,
   reconcileTransitionReport,
   rollbackOptimisticTransition,
-} from "@/app/hooks/reportsStore";
-import { fetchReportById, updateReportStatus } from "@/app/services/reports";
-import { normalizeReportId } from "@/app/services/reportSync";
+} from "../../../hooks/reportsStore";
+import { fetchReportById, updateReportStatus } from "./reportsApi";
+import { normalizeReportId } from "./reportSync";
 
 type TransitionOrigin = "dashboard" | "operational-map" | "all-reports" | "triage" | "unknown";
 
@@ -67,8 +67,6 @@ export const transitionReportStatus = async ({
     throw new Error("Cannot transition report with empty id.");
   }
 
-  // Reconcile first when API is already at the requested target state.
-  // This prevents unnecessary PATCH calls that may return non-idempotent 400 responses.
   try {
     const latestBeforePatch = await fetchReportById(normalizedId);
     const latestStatus = mapApiStatusToSlug(extractStatusValue(latestBeforePatch));
@@ -145,8 +143,6 @@ export const transitionReportStatus = async ({
       },
     };
   } catch (error) {
-    // Some backend transitions are non-idempotent and may return 400 even when
-    // the target status has already been applied by a concurrent actor.
     try {
       const latestOnError = await fetchReportById(normalizedId);
       const latestStatus = mapApiStatusToSlug(extractStatusValue(latestOnError));
@@ -172,7 +168,6 @@ export const transitionReportStatus = async ({
       // Ignore fallback fetch failures and continue with rollback.
     }
 
-    // Secondary reconciliation path: refresh shared list and trust latest store snapshot.
     try {
       await loadReportsShared(true);
       const latestFromStore = getReportById(normalizedId);

@@ -1,9 +1,10 @@
 import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 
 import { mapApiStatusToLabel } from "@/app/constants/reportStatus";
-
-type IncidentDepartment = "bfp" | "ctmo" | "pdrmo" | "pnp";
-type IncidentStatus = "submitted" | "under-review" | "in-progress" | "resolved" | "rejected";
+import {
+	type IncidentDepartment,
+	type IncidentStatus,
+} from "@/app/features/reports/types";
 
 type SortKey = "id" | "incidentType" | "location" | "reporter" | "department" | "status" | "time";
 type SortDirection = "asc" | "desc";

@@ -24,7 +24,8 @@ import {
 	type BridgeNoteUpdate,
 } from "../Dashboard/incidentBridge";
 import { useReports } from "@/app/hooks/useReports";
-import { fetchReportById } from "@/app/services/reports";
+import { fetchReportById } from "@/app/features/reports/services/reportsApi";
+import { normalizeReportId } from "@/app/features/reports/services/reportSync";
 import {
 	mapApiStatusToLabel,
 	mapApiStatusToSlug,
@@ -35,15 +36,21 @@ import {
 	type IncidentStatusSlug,
 } from "@/app/constants/reportStatus";
 import { mapCategoryCodeToType } from "@/app/constants/reportCategories";
-import { transitionReportStatus } from "@/app/services/reportTransitionService";
+import { transitionReportStatus } from "@/app/features/reports/services/reportTransitionService";
+import { formatDateForFilename, getTimeValue } from "@/app/lib/formattingUtils";
+import {
+	getIncidentDepartmentClasses,
+	getIncidentStatusClasses,
+} from "@/app/lib/uiClassUtils";
+import {
+	type IncidentDepartment,
+	type IncidentSeverity,
+	type IncidentStatus,
+} from "@/app/features/reports/types";
 import AllReportsSidebar from "./AllReportsSidebar";
 import AllReportsTable from "./AllReportsTable";
 
 const MODAL_EXIT_MS = 260;
-
-type IncidentSeverity = "critical" | "high" | "medium" | "low";
-type IncidentStatus = IncidentStatusSlug;
-type IncidentDepartment = "bfp" | "ctmo" | "pdrmo" | "pnp";
 
 type IncidentReport = {
 	id: string;
@@ -99,21 +106,6 @@ const departmentLabel: Record<IncidentDepartment, string> = {
 	pdrmo: "PDRRMO",
 	pnp: "PNP",
 };
-
-const getTimeValue = (isoValue: string) => {
-	const stamp = Date.parse(isoValue);
-	return Number.isNaN(stamp) ? 0 : stamp;
-};
-
-const formatFilenameDate = () => {
-	const now = new Date();
-	const y = now.getFullYear();
-	const m = String(now.getMonth() + 1).padStart(2, "0");
-	const d = String(now.getDate()).padStart(2, "0");
-	return `${y}-${m}-${d}`;
-};
-
-const normalizeReportId = (value: string) => value.replace(/^RPT-\d+-/, "");
 
 const toText = (value: unknown) => {
 	if (value === null || value === undefined) return "";
@@ -176,21 +168,6 @@ const RejectConfirmModal = ({
 			</div>
 		</div>
 	);
-};
-
-const getStatusClasses = (status: IncidentStatus) => {
-	if (status === "under-review") return "border-[var(--color-blue-border)] bg-[var(--color-blue-glow)] text-[var(--color-text-blue)]";
-	if (status === "submitted") return "border-[var(--color-border-2)] bg-[var(--color-surface-2)] text-[var(--color-text-3)]";
-	if (status === "in-progress") return "border-[var(--color-orange-border)] bg-[var(--color-orange-glow)] text-[var(--color-orange)]";
-	if (status === "rejected") return "border-[var(--color-red-border)] bg-[var(--color-red-glow)] text-[var(--color-text-red)]";
-	return "border-[var(--color-green-border)] bg-[var(--color-green-glow)] text-[var(--color-text-green)]";
-};
-
-const getDepartmentClasses = (department: IncidentDepartment) => {
-	if (department === "bfp") return "border-[var(--color-orange-border)] bg-[var(--color-orange-glow)] text-[var(--color-orange)]";
-	if (department === "ctmo") return "border-[var(--color-amber-border)] bg-[var(--color-amber-glow)] text-[var(--color-text-amber)]";
-	if (department === "pdrmo") return "border-[var(--color-blue-border)] bg-[var(--color-blue-glow)] text-[var(--color-text-blue)]";
-	return "border-[var(--color-purple-border)] bg-[var(--color-purple-glow)] text-[var(--color-text-purple)]";
 };
 
 const mapApiStatusToIncidentStatus = (status: unknown): IncidentStatus =>
@@ -446,7 +423,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		const url = URL.createObjectURL(blob);
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = `resqline-reports-${formatFilenameDate()}.csv`;
+		link.download = `resqline-reports-${formatDateForFilename()}.csv`;
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
@@ -788,8 +765,8 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 								onOpenReportDetails={openReportDetails}
 								onPrevPage={() => setCurrentPage((p) => Math.max(1, p - 1))}
 								onNextPage={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-								getDepartmentClasses={getDepartmentClasses}
-								getStatusClasses={getStatusClasses}
+								getDepartmentClasses={(department) => getIncidentDepartmentClasses(department)}
+								getStatusClasses={(status) => getIncidentStatusClasses(status)}
 								departmentLabel={departmentLabel}
 							/>
 						</div>

@@ -29,7 +29,7 @@ import {
   statusStep,
   type IncidentStatusSlug,
 } from "@/app/constants/reportStatus";
-import { transitionReportStatus } from "@/app/services/reportTransitionService";
+import { transitionReportStatus } from "@/app/features/reports/services/reportTransitionService";
 
 const MODAL_EXIT_MS = 260;
 
@@ -218,7 +218,7 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
             type="button"
             onClick={() => runAction("dispatch")}
             className="ui-btn ui-btn-primary"
-            disabled={currentStatusStep < 2 || currentStatusStep >= 4}
+            disabled={currentStatusStep < 1 || currentStatusStep >= 3}
           >
             <Send size={14} fill="currentColor" />
             Dispatch Unit
@@ -226,7 +226,7 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           <button
             type="button"
             onClick={handleResolveIncident}
-            disabled={currentStatusStep !== 3}
+            disabled={currentStatusStep !== 2}
             className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) transition-colors hover:bg-[rgba(67,160,71,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CheckCircle2 size={14} />
@@ -260,9 +260,9 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           label="Submitted"
           icon={<Check size={12} />}
           variant={
-            currentStatusStep > 1
+            currentStatusStep > 0
               ? "completed"
-              : currentStatusStep === 1
+              : currentStatusStep === 0
                 ? "active"
                 : "disabled"
           }
@@ -273,6 +273,19 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           label="Under Review"
           icon={<Clock size={12} />}
           variant={
+            currentStatusStep > 1
+              ? "completed"
+              : currentStatusStep === 1
+                ? "active"
+                : "disabled"
+          }
+        />
+        <ChevronRight size={12} className="text-(--color-text-4)" />
+
+        <StatusPill
+          label="Dispatched"
+          icon={<Star size={12} />}
+          variant={
             currentStatusStep > 2
               ? "completed"
               : currentStatusStep === 2
@@ -282,22 +295,8 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
         />
         <ChevronRight size={12} className="text-(--color-text-4)" />
 
-        {/* Displaying In-Progress as "Dispatched" */}
-        <StatusPill
-          label="Dispatched"
-          icon={<Star size={12} />}
-          variant={
-            currentStatusStep > 3
-              ? "completed"
-              : currentStatusStep === 3
-                ? "active"
-                : "disabled"
-          }
-        />
-        <ChevronRight size={12} className="text-(--color-text-4)" />
-
         {/* Only show Resolved or Rejected as the final step */}
-        {currentStatusStep === 5 ? (
+        {currentStatusStep === 4 ? (
           <StatusPill
             label="Rejected"
             icon={<X size={12} />}
@@ -307,7 +306,7 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           <StatusPill
             label="Resolved"
             icon={<CheckCircle2 size={12} />}
-            variant={currentStatusStep === 4 ? "completed" : "disabled"}
+            variant={currentStatusStep === 3 ? "completed" : "disabled"}
           />
         )}
       </div>
