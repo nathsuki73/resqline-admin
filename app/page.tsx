@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AlertsSection from "./components/settings/AlertsSection";
+import DisplaySection from "./components/settings/DisplaySection";
 import ProfileSection from "./components/settings/ProfileSection";
 import RolesSection from "./components/settings/RolesSection";
 import SettingsNav from "./components/SettingsNav";
@@ -20,8 +21,8 @@ export default function ResponderDashboard() {
         return <RolesSection />;
       case "alerts-sounds":
         return <AlertsSection />;
-      // TODO: Add other settings sections here
-      // case "display-interface": return <DisplayInterfaceSection />;
+      case "display-interface":
+        return <DisplaySection />;
       default:
         return <ProfileSection />;
     }
