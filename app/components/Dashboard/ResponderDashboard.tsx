@@ -1,9 +1,14 @@
+"use client";
 import TriageFeed from "./TriageFeed";
 import IncidentHeader from "./IncidentHeader";
 import IncidentDetailPanel from "./IncidentDetailPanel";
 import IncidentMap from "./IncidentMap";
+import OperationalMapView from "../MapView/OperationalMapView";
+import { useState } from "react";
 
 export default function ResponderDashboard() {
+  const [showFullMap, setShowFullMap] = useState(false);
+
   return (
     // Outer Wrapper: Full screen height, no scroll on the body
     <div className="flex h-screen w-full flex-row overflow-hidden bg-[#0a0a0a]">
@@ -22,10 +27,15 @@ export default function ResponderDashboard() {
 
           {/* Right: Map (Takes up remaining space) */}
           <div className="relative flex-1 bg-black">
-            <IncidentMap />
+            <IncidentMap onOpenFullMap={() => setShowFullMap(true)} />
           </div>
         </div>
       </main>
+
+      {/* THE UNIFIED FULL SCREEN VIEW */}
+      {showFullMap && (
+        <OperationalMapView onClose={() => setShowFullMap(false)} />
+      )}
     </div>
   );
 }

@@ -1,71 +1,153 @@
 "use client";
-import React, { useState } from "react";
-import { LayoutGrid, Map, FileText, Users, Settings, Zap } from "lucide-react";
+import Image from "next/image";
+import React from "react";
+import { LayoutGrid, Map, FileText, Users, Settings } from "lucide-react";
+
+export type SideNavPanel = "triage" | "settings";
+export type SideNavTriageItem = "dashboard" | "map" | "reports" | "responders";
 
 type NavItem = {
+  id: SideNavTriageItem;
+  label: string;
   icon: React.ReactNode;
   badge?: boolean;
 };
 
-const SideNav: React.FC = () => {
-  const [activeIndex, setActiveIndex] = useState<number>(0);
+type SideNavProps = {
+  activePanel: SideNavPanel;
+  activeTriageItem: SideNavTriageItem;
+  onPanelChange: (panel: SideNavPanel) => void;
+  onTriageItemSelect: (itemId: SideNavTriageItem) => void;
+  onSettingsItemSelect?: (itemId: string) => void;
+};
+
+const SideNav: React.FC<SideNavProps> = ({
+  activePanel,
+  activeTriageItem,
+  onPanelChange,
+  onTriageItemSelect,
+  onSettingsItemSelect,
+}) => {
+  const isTriagePanel = activePanel === "triage";
 
   const navItems: NavItem[] = [
-    { icon: <LayoutGrid size={20} />, badge: false },
-    { icon: <Map size={20} />, badge: false },
-    { icon: <FileText size={20} />, badge: false },
+    { id: "dashboard", label: "Dashboard", icon: <LayoutGrid size={20} />, badge: false },
+    { id: "map", label: "Full Map", icon: <Map size={20} />, badge: false },
+    { id: "reports", label: "All Reports", icon: <FileText size={20} />, badge: false },
   ];
 
   return (
-    <div className="flex h-screen w-16 flex-col items-center border-r border-gray-800 bg-[#121212] py-4 text-gray-400">
+    <aside className="sidebar-shell fixed inset-y-0 left-0 z-50 flex h-screen w-16 shrink-0 flex-col items-center overflow-visible py-4">
       {/* Top Logo */}
-      <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white shadow-lg shadow-orange-900/20">
-        <Zap size={22} fill="currentColor" />
+      <div className="sidebar-logo-tile mb-6 flex h-10 w-10 items-center justify-center rounded-xl p-1">
+        <Image
+          src="/images/ResqlineLogo.svg"
+          alt="ResqLine"
+          width={28}
+          height={28}
+          className="h-7 w-7 object-contain"
+          priority
+        />
       </div>
 
       {/* Navigation */}
       <nav className="flex flex-col gap-4">
-        {navItems.map((item, index) => (
-          <button
-            key={index}
-            onClick={() => setActiveIndex(index)}
-            className={`relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 
-              ${
-                activeIndex === index
-                  ? "bg-orange-500/10 text-orange-500 border border-orange-500/30"
-                  : "hover:bg-gray-800 hover:text-gray-200"
-              }`}
-          >
-            {item.icon}
+        {navItems.map((item) => (
+          <div key={item.id} className="sidebar-tooltip-wrap group relative">
+            <button
+              onClick={() => {
+                onTriageItemSelect(item.id);
+                onPanelChange("triage");
+              }}
+              className={`sidebar-nav-btn relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl 
+                ${
+                  isTriagePanel && activeTriageItem === item.id
+                    ? "is-active"
+                    : ""
+                }`}
+              aria-label={item.label}
+              title={item.label}
+            >
+              {item.icon}
 
-            {item.badge && (
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 border-2 border-[#121212]" />
-            )}
-          </button>
+              {item.badge && (
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-[#171411] bg-red-500" />
+              )}
+            </button>
+            <span className="sidebar-tooltip" role="tooltip">
+              {item.label}
+            </span>
+          </div>
         ))}
 
-        <div className="my-2 h-[1px] w-8 bg-gray-800" />
+        <div className="sidebar-divider my-2 h-px w-8" />
 
-        <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl hover:bg-gray-800 hover:text-gray-200">
-          <Users size={20} />
-        </button>
+        <div className="sidebar-tooltip-wrap group relative">
+          <button
+            type="button"
+            onClick={() => {
+              onTriageItemSelect("responders");
+              onPanelChange("triage");
+            }}
+            className={`sidebar-nav-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl ${
+              isTriagePanel && activeTriageItem === "responders" ? "is-active" : ""
+            }`}
+            aria-label="Responders"
+            title="Responders"
+          >
+            <Users size={20} />
+          </button>
+          <span className="sidebar-tooltip" role="tooltip">
+            Responders
+          </span>
+        </div>
       </nav>
 
       {/* Bottom */}
       <div className="mt-auto flex flex-col items-center gap-4">
-        <button className="cursor-pointer text-gray-500 hover:text-gray-200">
-          <Settings size={20} />
-        </button>
+        <div className="sidebar-tooltip-wrap group relative">
+          <button
+            type="button"
+            onClick={() => onPanelChange("settings")}
+            className={`sidebar-nav-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl ${
+              activePanel === "settings"
+                ? "is-active"
+                : ""
+            }`}
+            aria-label="Settings"
+            title="Settings"
+            aria-pressed={activePanel === "settings"}
+          >
+            <Settings size={20} />
+          </button>
+          <span className="sidebar-tooltip" role="tooltip">
+            Settings
+          </span>
+        </div>
 
         <div className="flex h-8 w-10 items-center justify-center rounded-md border border-orange-500/20 bg-orange-500/5 text-[10px] font-bold text-orange-500">
           BFP
         </div>
 
-        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-orange-500/40 text-[10px] font-bold text-orange-500">
-          RD
+        <div className="sidebar-tooltip-wrap group relative">
+          <button
+            type="button"
+            onClick={() => {
+              onSettingsItemSelect?.("profile-account");
+              onPanelChange("settings");
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-orange-500/40 text-[10px] font-bold text-orange-500 transition-colors hover:bg-orange-500/10"
+            aria-label="Profile"
+            title="Profile"
+          >
+            RD
+          </button>
+          <span className="sidebar-tooltip" role="tooltip">
+            Profile
+          </span>
         </div>
       </div>
-    </div>
+    </aside>
   );
 };
 

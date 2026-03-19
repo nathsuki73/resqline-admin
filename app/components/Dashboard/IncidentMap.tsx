@@ -12,7 +12,11 @@ interface IncidentMarker {
   type: "SOS" | "Fire" | "Flood";
 }
 
-const IncidentMap = () => {
+interface IncidentMapProps {
+  onOpenFullMap?: () => void;
+}
+
+const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
   const [viewState, setViewState] = useState({
     longitude: 121.0287,
     latitude: 14.6574,
@@ -51,7 +55,10 @@ const IncidentMap = () => {
           <span className="text-[10px] font-mono text-gray-500">
             14.6574°N 121.0287°E
           </span>
-          <button className="flex items-center gap-2 bg-gray-800/80 hover:bg-gray-700 text-gray-200 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border border-gray-700">
+          <button
+            onClick={onOpenFullMap}
+            className="flex items-center gap-2 bg-gray-800/80 hover:bg-gray-700 text-gray-200 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border border-gray-700"
+          >
             Open in Maps <ExternalLink size={12} />
           </button>
         </div>
