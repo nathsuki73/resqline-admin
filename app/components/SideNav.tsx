@@ -25,7 +25,7 @@ const SideNav: React.FC<SideNavProps> = ({ activePanel, onPanelChange }) => {
   ];
 
   return (
-    <div className="flex h-screen w-16 flex-col items-center border-r border-gray-800 bg-[#121212] py-4 text-gray-400">
+    <aside className="fixed inset-y-0 left-0 z-50 flex h-screen w-16 shrink-0 flex-col items-center overflow-hidden border-r border-gray-800 bg-[#121212] py-4 text-gray-400">
       {/* Top Logo */}
       <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white shadow-lg shadow-orange-900/20">
         <Zap size={22} fill="currentColor" />
@@ -86,7 +86,7 @@ const SideNav: React.FC<SideNavProps> = ({ activePanel, onPanelChange }) => {
           RD
         </div>
       </div>
-    </div>
+    </aside>
   );
 };
 

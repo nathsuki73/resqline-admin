@@ -1,25 +1,282 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── ResqLine Brand Colors ── */
+  --color-orange:           #F57C00;
+  --color-orange-dim:       #C46200;
+  --color-orange-glow:      rgba(245, 124, 0, 0.13);
+  --color-orange-border:    rgba(245, 124, 0, 0.30);
+
+  /* ── Backgrounds (dark hierarchy) ── */
+  --color-bg:               #191716;
+  --color-surface-1:        #1E1C1A;
+  --color-surface-2:        #252220;
+  --color-surface-3:        #2C2925;
+  --color-surface-4:        #333028;
+
+  /* ── Borders ── */
+  --color-border-1:         #2A2724;
+  --color-border-2:         #3A3632;
+  --color-border-3:         #4A4540;
+
+  /* ── Text ── */
+  --color-text-1:           #F0EDE8;
+  --color-text-2:           #B8B0A6;
+  --color-text-3:           #7A7268;
+  --color-text-4:           #4A4540;
+
+  /* ── Semantic — Red / Emergency ── */
+  --color-red:              #E53935;
+  --color-red-dim:          #B71C1C;
+  --color-red-glow:         rgba(229, 57, 53, 0.12);
+  --color-red-border:       rgba(229, 57, 53, 0.35);
+  --color-text-red:         #EF9A9A;
+
+  /* ── Semantic — Green / Success ── */
+  --color-green:            #43A047;
+  --color-green-glow:       rgba(67, 160, 71, 0.15);
+  --color-green-border:     rgba(67, 160, 71, 0.35);
+  --color-text-green:       #A5D6A7;
+
+  /* ── Semantic — Amber / Warning ── */
+  --color-amber:            #FFB300;
+  --color-amber-glow:       rgba(255, 179, 0, 0.13);
+  --color-amber-border:     rgba(255, 179, 0, 0.30);
+  --color-text-amber:       #FFB300;
+
+  /* ── Semantic — Blue / Info ── */
+  --color-blue:             #1E88E5;
+  --color-blue-glow:        rgba(30, 136, 229, 0.13);
+  --color-blue-border:      rgba(30, 136, 229, 0.30);
+  --color-text-blue:        #90CAF9;
+
+  /* ── Semantic — Purple / Crime ── */
+  --color-purple:           #9C27B0;
+  --color-purple-glow:      rgba(156, 39, 176, 0.13);
+  --color-purple-border:    rgba(156, 39, 176, 0.30);
+  --color-text-purple:      #CE93D8;
+
+  /* ── Typography ── */
+  --font-family:            var(--font-open-sans), 'Open Sans', sans-serif;
+  --font-size-xs:           9px;
+  --font-size-sm:           10px;
+  --font-size-base:         11px;
+  --font-size-md:           12px;
+  --font-size-body:         13px;
+  --font-size-lg:           14px;
+  --font-size-xl:           15px;
+  --font-size-2xl:          18px;
+  --font-size-3xl:          20px;
+  --font-size-4xl:          22px;
+
+  --font-weight-regular:    400;
+  --font-weight-semibold:   600;
+  --font-weight-bold:       700;
+
+  --line-height-tight:      1.2;
+  --line-height-base:       1.4;
+  --line-height-relaxed:    1.65;
+
+  --letter-spacing-tight:   0.3px;
+  --letter-spacing-wide:    0.6px;
+  --letter-spacing-wider:   0.8px;
+  --letter-spacing-widest:  1px;
+
+  /* ── Spacing Scale ── */
+  --space-1:   2px;
+  --space-2:   4px;
+  --space-3:   6px;
+  --space-4:   8px;
+  --space-5:   10px;
+  --space-6:   12px;
+  --space-7:   14px;
+  --space-8:   16px;
+  --space-9:   18px;
+  --space-10:  20px;
+  --space-12:  24px;
+  --space-14:  28px;
+  --space-16:  32px;
+  --space-20:  40px;
+
+  /* ── Border Radius ── */
+  --radius-sm:   3px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   10px;
+  --radius-2xl:  12px;
+  --radius-3xl:  14px;
+  --radius-full: 9999px;
+
+  /* ── Layout ── */
+  --sidebar-width:        60px;
+  --feed-col-width:       310px;
+  --detail-left-width:    370px;
+  --map-drawer-width:     340px;
+  --settings-nav-width:   220px;
+  --reports-detail-width: 380px;
+  --topbar-height:        44px;
+  --stepper-height:       42px;
+
+  /* ── Shadows ── */
+  --shadow-modal:   0 24px 80px rgba(0, 0, 0, 0.7);
+  --shadow-panel:   0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-orange:  0 0 18px rgba(245, 124, 0, 0.25);
+
+  /* ── Transitions ── */
+  --transition-fast:    all 0.15s ease;
+  --transition-medium:  all 0.20s ease;
+  --transition-slow:    all 0.30s ease;
+
+  /* ── Z-Index Scale ── */
+  --z-base:       1;
+  --z-sidebar:    50;
+  --z-topbar:     40;
+  --z-drawer:     60;
+  --z-modal:      200;
+  --z-sos-modal:  300;
+
+  /* ── Tailwind Legacy Support ── */
+  --background: #191716;
+  --foreground: #F0EDE8;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes modal-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
+@keyframes modal-card-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
 @layer components {
+  /* ─────────────────────────────────────────────
+     SETTINGS PAGE
+  ───────────────────────────────────────────── */
+  .settings-nav {
+    width: var(--settings-nav-width);
+    flex-shrink: 0;
+    border-right: 1px solid var(--color-border-1);
+    background: var(--color-surface-1);
+    overflow-y: auto;
+    padding: var(--space-8) 0;
+  }
+
+  .settings-nav__section {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-widest);
+    color: var(--color-text-4);
+    padding: 0 16px;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+
+  .settings-nav__section:first-child {
+    margin-top: 0;
+  }
+
+  .settings-nav__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    cursor: pointer;
+    font-size: var(--font-size-md);
+    color: var(--color-text-3);
+    transition: var(--transition-fast);
+    border-left: 2px solid transparent;
+  }
+
+  .settings-nav__item:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+  }
+
+  .settings-nav__item.active {
+    background: var(--color-orange-glow);
+    color: var(--color-orange);
+    border-left-color: var(--color-orange);
+  }
+
+  .settings-card {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border-1);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .settings-card__header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border-1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .settings-card__title {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-1);
+    flex: 1;
+  }
+
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--color-border-1);
+  }
+
+  .settings-row:last-child {
+    border-bottom: none;
+  }
+
+  .settings-row__title {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-1);
+  }
+
+  .settings-row__sub {
+    font-size: var(--font-size-base);
+    color: var(--color-text-3);
+    margin-top: 2px;
+  }
+
+  /* Danger zone */
+  .danger-zone {
+    background: rgba(229, 57, 53, 0.06);
+    border: 1px solid var(--color-red-border);
+    border-radius: var(--radius-xl);
+    padding: 14px 16px;
+    margin-top: 20px;
+  }
+
+  .danger-zone__title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-red);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   /* For Firefox */
   .custom-scrollbar {
     scrollbar-width: thin;
@@ -46,10 +303,22 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #3f3f3f;
   }
+
+  .animate-modal-overlay {
+    animation: modal-overlay-fade-in 160ms ease-out;
+  }
+
+  .animate-modal-card {
+    animation: modal-card-pop-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text-1);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
