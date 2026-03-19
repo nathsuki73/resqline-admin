@@ -143,8 +143,8 @@ const IncidentDetailPanel = () => {
       {/* Reporter Description */}
       <SectionHeader title="Reporter Description" />
       <div className="bg-gray-900/20 border border-gray-800 p-4 rounded-xl italic text-xs text-gray-400 leading-relaxed mb-6">
-        "Malaking sunog sa 3-storey building sa may Pag-asa. May naririnig pang
-        sigaw sa loob."
+        &quot;Malaking sunog sa 3-storey building sa may Pag-asa. May naririnig pang
+        sigaw sa loob.&quot;
       </div>
 
       {/* Internal Notes */}
