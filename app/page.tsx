@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AlertsSection from "./components/settings/AlertsSection";
 import ProfileSection from "./components/settings/ProfileSection";
 import RolesSection from "./components/settings/RolesSection";
 import SettingsNav from "./components/SettingsNav";
@@ -17,8 +18,9 @@ export default function ResponderDashboard() {
         return <ProfileSection />;
       case "roles-permissions":
         return <RolesSection />;
+      case "alerts-sounds":
+        return <AlertsSection />;
       // TODO: Add other settings sections here
-      // case "alerts-sounds": return <AlertsSoundsSection />;
       // case "display-interface": return <DisplayInterfaceSection />;
       default:
         return <ProfileSection />;
