@@ -1,5 +1,5 @@
 import SideNav from "./components/SideNav";
-import ResponderDashboardComponent from "./components/ResponderDashboard";
+import ResponderDashboardComponent from "./components/Dashboard/ResponderDashboard";
 
 export default function MainPage() {
   return (
