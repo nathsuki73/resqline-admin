@@ -227,6 +227,74 @@
   }
 
   /* ─────────────────────────────────────────────
+     SIDEBAR THEME
+  ───────────────────────────────────────────── */
+  .sidebar-shell {
+    border-right: 1px solid var(--color-border-1);
+    background: var(--color-surface-1);
+    color: var(--color-text-3);
+  }
+
+  .sidebar-logo-tile {
+    border: 1px solid var(--color-orange-border);
+    background: linear-gradient(145deg, #ff921f 0%, var(--color-orange) 62%, var(--color-orange-dim) 100%);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(255, 170, 82, 0.14) inset;
+  }
+
+  .sidebar-nav-btn {
+    color: var(--color-text-3);
+    border: 1px solid transparent;
+    transition: var(--transition-fast);
+  }
+
+  .sidebar-nav-btn:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text-2);
+  }
+
+  .sidebar-nav-btn.is-active {
+    background: var(--color-orange-glow);
+    color: var(--color-orange);
+    border-color: var(--color-orange-border);
+  }
+
+  .sidebar-divider {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(74, 69, 64, 0.7) 18%,
+      rgba(74, 69, 64, 0.7) 82%,
+      transparent 100%
+    );
+  }
+
+  .sidebar-tooltip {
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    opacity: 0;
+    white-space: nowrap;
+    z-index: 80;
+    border: 1px solid var(--color-border-2);
+    background: var(--color-surface-2);
+    color: var(--color-text-1);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-tight);
+    border-radius: var(--radius-md);
+    padding: 4px 8px;
+    box-shadow: var(--shadow-panel);
+    transition: opacity 120ms ease;
+  }
+
+  .sidebar-tooltip-wrap:hover .sidebar-tooltip,
+  .sidebar-tooltip-wrap:focus-within .sidebar-tooltip {
+    opacity: 1;
+  }
+
+  /* ─────────────────────────────────────────────
      SETTINGS PAGE
   ───────────────────────────────────────────── */
   .settings-nav {

@@ -30,10 +30,17 @@ export default function ResponderDashboard() {
 
   return (
     <div className="flex flex-row pl-16">
-      <SideNav activePanel={activePanel} onPanelChange={setActivePanel} />
+      <SideNav
+        activePanel={activePanel}
+        onPanelChange={setActivePanel}
+        onSettingsItemSelect={setActiveSettingsItem}
+      />
       {activePanel === "settings" ? (
         <div className="flex flex-row flex-1">
-          <SettingsNav onItemSelect={setActiveSettingsItem} />
+          <SettingsNav
+            defaultActiveItemId={activeSettingsItem}
+            onItemSelect={setActiveSettingsItem}
+          />
           {renderSettingsContent()}
         </div>
       ) : (

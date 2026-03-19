@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	Bell,
 	Lock,
@@ -94,6 +94,10 @@ export default function SettingsNav({
 		[defaultActiveItemId],
 	);
 	const [activeItemId, setActiveItemId] = useState(initialActiveItem);
+
+	useEffect(() => {
+		setActiveItemId(initialActiveItem);
+	}, [initialActiveItem]);
 
 	const handleSelect = (itemId: string) => {
 		setActiveItemId(itemId);
