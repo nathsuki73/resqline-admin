@@ -761,9 +761,7 @@ export default function ProfileSection() {
                       </button>
                     ) : null}
                   </div>
-                ) : (
-                  <p className="mt-3 text-xs text-[#7a7268]">Identity is locked. Click Customize to edit details.</p>
-                )}
+                ) : null}
                 <input
                   ref={avatarInputRef}
                   type="file"
