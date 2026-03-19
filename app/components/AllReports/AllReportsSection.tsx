@@ -35,7 +35,11 @@ import {
 	statusStep,
 	type IncidentStatusSlug,
 } from "@/app/constants/reportStatus";
-import { mapCategoryCodeToType } from "@/app/constants/reportCategories";
+import {
+	getReportCategoryInput,
+	mapCategoryCodeToType,
+	type IncidentCategoryType,
+} from "@/app/constants/reportCategories";
 import { transitionReportStatus } from "@/app/features/reports/services/reportTransitionService";
 import { formatDateForFilename, getTimeValue } from "@/app/lib/formattingUtils";
 import {
@@ -54,6 +58,7 @@ const MODAL_EXIT_MS = 260;
 
 type IncidentReport = {
 	id: string;
+	type: IncidentCategoryType;
 	incidentType: string;
 	location: string;
 	reporter: string;
@@ -68,7 +73,7 @@ type IncidentReport = {
 	internalNote: string;
 };
 
-type SortKey = "id" | "incidentType" | "location" | "reporter" | "department" | "status" | "time";
+type SortKey = "id" | "type" | "incidentType" | "location" | "reporter" | "department" | "status" | "time";
 type SortDirection = "asc" | "desc";
 
 type SortState = {
@@ -177,9 +182,9 @@ const mapIncidentStatusToApiStatus = (status: IncidentStatus): number =>
 	mapSlugToApiStatus(status);
 
 const mapCategoryToDepartment = (category: unknown): IncidentDepartment => {
-	if (category === 3) return "bfp";
-	if (category === 2) return "ctmo";
-	if (category === 5) return "pdrmo";
+	const mapped = mapCategoryCodeToType(category);
+	if (mapped === "FIRE") return "bfp";
+	if (mapped === "TRAFFIC") return "ctmo";
 	return "pdrmo";
 };
 
@@ -191,15 +196,17 @@ const mapApiReportToIncidentReport = (report: any): IncidentReport => {
 	const location = geoCode ?? (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
 
 	const status = mapApiStatusToIncidentStatus(report.status);
+	const categoryInput = getReportCategoryInput(report);
 	const severity: IncidentSeverity = status === "resolved" ? "medium" : status === "submitted" ? "critical" : "high";
 
 	return {
 		id: String(report.id ?? ""),
+		type: mapCategoryCodeToType(categoryInput),
 		incidentType: report.description || "General Incident",
 		location,
 		reporter: report.reportByName || report.reportedBy?.name || "Unknown",
 		reporterContact: report.reportByPhoneNumber || report.reportedBy?.phoneNumber || "No contact provided",
-		department: mapCategoryToDepartment(report.category),
+		department: mapCategoryToDepartment(categoryInput),
 		severity,
 		status,
 		mobileStatus: mapResponderStatusToMobileStatus(status),
@@ -310,6 +317,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 			let comparison = 0;
 
 			if (sortState.key === "id") comparison = a.id.localeCompare(b.id, undefined, { numeric: true });
+			if (sortState.key === "type") comparison = a.type.localeCompare(b.type);
 			if (sortState.key === "incidentType") comparison = a.incidentType.localeCompare(b.incidentType);
 			if (sortState.key === "location") comparison = a.location.localeCompare(b.location);
 			if (sortState.key === "reporter") comparison = a.reporter.localeCompare(b.reporter);
@@ -383,7 +391,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 			const latitude = raw?.reportedAt?.latitude ?? raw?.location?.latitude;
 			const longitude = raw?.reportedAt?.longitude ?? raw?.location?.longitude;
 			const reverseGeoCode = raw?.reportedAt?.reverseGeoCode ?? raw?.location?.reverseGeoCode;
-			const categoryCode = raw?.category;
+			const categoryCode = getReportCategoryInput(raw);
 			const imageCount = Array.isArray(raw?.images)
 				? raw.images.length
 				: Array.isArray(raw?.image)

@@ -1,4 +1,12 @@
-import { Building2, Droplets, Flame, ShieldAlert, Truck } from "lucide-react";
+import {
+  Building2,
+  CircleHelp,
+  Droplets,
+  Flame,
+  HeartPulse,
+  Siren,
+  Truck,
+} from "lucide-react";
 import { BridgeIncident } from "../incidentBridge";
 import { type IncidentCategoryType } from "@/app/constants/reportCategories";
 
@@ -28,6 +36,14 @@ export const FeedItem: React.FC<
   ReportFeedItem & { active?: boolean; onSelect: () => void }
 > = ({ title, location, time, type, percentage, status, active, onSelect }) => {
   const configs: Record<FeedType, any> = {
+    SOS: {
+      icon: Siren,
+      color: "text-(--color-red)",
+      bg: "bg-(--color-red-glow)",
+      border: "border-(--color-red-border)",
+      tag: "bg-(--color-red-glow) text-(--color-text-red)",
+      ping: "bg-(--color-red)",
+    },
     FIRE: {
       icon: Flame,
       color: "text-(--color-orange)",
@@ -61,7 +77,7 @@ export const FeedItem: React.FC<
       ping: "bg-(--color-purple)",
     },
     MEDICAL: {
-      icon: ShieldAlert,
+      icon: HeartPulse,
       color: "text-(--color-text-green)",
       bg: "bg-(--color-green-glow)",
       border: "border-(--color-green-border)",
@@ -69,7 +85,7 @@ export const FeedItem: React.FC<
       ping: "bg-(--color-green)",
     },
     OTHER: {
-      icon: ShieldAlert,
+      icon: CircleHelp,
       color: "text-(--color-text-3)",
       bg: "bg-(--color-surface-2)",
       border: "border-(--color-border-1)",

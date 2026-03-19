@@ -36,7 +36,7 @@ const seedReports: LocalReportRecord[] = [
   {
     id: "1001",
     description: "Structure fire near market block C",
-    category: 3,
+    category: 1,
     status: 0,
     createdAt: "2026-03-21T08:35:00.000Z",
     reportByName: "Maria Santos",
@@ -60,7 +60,7 @@ const seedReports: LocalReportRecord[] = [
   {
     id: "1002",
     description: "Two-vehicle collision along Commonwealth Ave",
-    category: 2,
+    category: 0,
     status: 1,
     createdAt: "2026-03-21T08:20:00.000Z",
     reportByName: "Rico Dela Cruz",
@@ -84,7 +84,7 @@ const seedReports: LocalReportRecord[] = [
   {
     id: "1003",
     description: "Flooded street with stalled vehicles",
-    category: 4,
+    category: 2,
     status: 0,
     createdAt: "2026-03-21T08:10:00.000Z",
     reportByName: "Ana Reyes",
@@ -108,7 +108,7 @@ const seedReports: LocalReportRecord[] = [
   {
     id: "1004",
     description: "Person collapsed at transport terminal",
-    category: 1,
+    category: 4,
     status: 2,
     createdAt: "2026-03-21T07:58:00.000Z",
     reportByName: "Joel Navarro",
@@ -132,7 +132,7 @@ const seedReports: LocalReportRecord[] = [
   {
     id: "1005",
     description: "Structural damage after wall collapse near depot",
-    category: 5,
+    category: 3,
     status: 1,
     createdAt: "2026-03-21T07:41:00.000Z",
     reportByName: "Liza Fernandez",

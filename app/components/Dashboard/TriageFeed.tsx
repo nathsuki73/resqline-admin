@@ -12,6 +12,7 @@ import { StatBlock } from "./TriageFeedComponents/StatBlock";
 import { FeedItem } from "./TriageFeedComponents/FeedItem";
 import { fetchReportById } from "@/app/features/reports/services/reportsApi";
 import {
+  getReportCategoryInput,
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
   type IncidentCategoryType,
@@ -60,11 +61,14 @@ const TriageFeed: React.FC = () => {
           statusOverridesById[r.id] ?? sourceStatus,
           sourceStatus,
         );
-        const incidentCategoryName = mapCategoryCodeToType(r.category);
+        const categoryInput = getReportCategoryInput(r);
+        const incidentCategoryName = mapCategoryCodeToType(categoryInput);
 
         // 🟢 1. Handle Location Fallback (API uses 'location', SignalR uses 'reportedAt')
         const lat = r.reportedAt?.latitude || r.location?.latitude;
         const lon = r.reportedAt?.longitude || r.location?.longitude;
+        const latitude = Number(lat);
+        const longitude = Number(lon);
         const geoCode =
           r.reportedAt?.reverseGeoCode || r.location?.reverseGeoCode;
         const locationString =
@@ -93,6 +97,8 @@ const TriageFeed: React.FC = () => {
             type: incidentCategoryName,
             incidentType: r.description || "General Incident",
             location: locationString,
+            latitude: Number.isFinite(latitude) ? latitude : undefined,
+            longitude: Number.isFinite(longitude) ? longitude : undefined,
 
             reporter: r.reportByName || r.reportedBy?.name || "Unknown",
             reporterContact:
@@ -101,7 +107,7 @@ const TriageFeed: React.FC = () => {
               "No contact provided",
             aiAnalysis: r.aiProbabilities || {},
             department: mapCategoryCodeToDepartment(
-              r.category,
+              categoryInput,
             ) as BridgeIncident["department"],
             severity: (r.status === 1 ? "Critical" : "Medium") as
               | "Critical"
@@ -294,7 +300,7 @@ const TriageFeed: React.FC = () => {
       <div className="grid shrink-0 grid-cols-4 border-t border-(--color-border-1) bg-(--color-bg) py-4">
         <StatBlock
           value={mergedReports
-            .filter((r) => r.category === 1)
+            .filter((r) => mapCategoryCodeToType(getReportCategoryInput(r)) === "SOS")
             .length.toString()}
           label="SOS"
           color="text-(--color-red)"

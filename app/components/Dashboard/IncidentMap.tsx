@@ -4,6 +4,7 @@ import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/mapbox
 import { Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
 import {
+  getReportCategoryInput,
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
 } from "@/app/constants/reportCategories";
@@ -11,7 +12,11 @@ import {
   mapApiStatusToSlug,
   mapResponderStatusToMobileStatus,
 } from "@/app/constants/reportStatus";
-import type { BridgeIncident } from "./incidentBridge";
+import {
+  getActiveIncident,
+  INCIDENT_SELECTED_EVENT,
+  type BridgeIncident,
+} from "./incidentBridge";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 interface IncidentMarker {
@@ -30,15 +35,23 @@ type IncidentSummary = {
   flood: number;
 };
 
+const isValidLatitude = (value: number): boolean =>
+  Number.isFinite(value) && value >= -90 && value <= 90;
+
+const isValidLongitude = (value: number): boolean =>
+  Number.isFinite(value) && value >= -180 && value <= 180;
+
 const mapCategoryToSeverity = (category: unknown): BridgeIncident["severity"] => {
-  if (category === 3 || category === 1) return "Critical";
-  if (category === 2 || category === 4) return "High";
+  const type = mapCategoryCodeToType(category);
+  if (type === "SOS" || type === "FIRE" || type === "MEDICAL") return "Critical";
+  if (type === "TRAFFIC" || type === "FLOOD") return "High";
   return "Medium";
 };
 
-const getMarkerType = (cat: number): "SOS" | "Fire" | "Flood" => {
-  if (cat === 3) return "Fire";
-  if (cat === 4) return "Flood";
+const getMarkerType = (category: unknown): "SOS" | "Fire" | "Flood" => {
+  const type = mapCategoryCodeToType(category);
+  if (type === "FIRE") return "Fire";
+  if (type === "FLOOD") return "Flood";
   return "SOS";
 };
 
@@ -88,7 +101,8 @@ const IncidentMap: React.FC<{
             ? `Lat ${lat}, Lon ${lng}`
             : "Unknown Location");
         const rawDate = r.createdAt || r.dateCreated;
-        const incidentCategoryName = getMarkerType(r.category);
+        const categoryInput = getReportCategoryInput(r);
+        const incidentCategoryName = getMarkerType(categoryInput);
 
         return {
           id: r.id || r._id || Math.random().toString(),
@@ -100,15 +114,15 @@ const IncidentMap: React.FC<{
             id: String(r.id || r._id || ""),
             incidentType: r.description || "General Incident",
             location: locationString,
-            latitude: Number.isFinite(lat) ? lat : undefined,
-            longitude: Number.isFinite(lng) ? lng : undefined,
+            latitude: isValidLatitude(lat) ? lat : undefined,
+            longitude: isValidLongitude(lng) ? lng : undefined,
             reporter: r.reportByName || r.reportedBy?.name || "Unknown",
             reporterContact:
               r.reportByPhoneNumber ||
               r.reportedBy?.phoneNumber ||
               "No contact provided",
-            department: mapCategoryCodeToDepartment(r.category),
-            severity: mapCategoryToSeverity(r.category),
+            department: mapCategoryCodeToDepartment(categoryInput),
+            severity: mapCategoryToSeverity(categoryInput),
             status: mapApiStatusToSlug(r.status),
             mobileStatus: mapResponderStatusToMobileStatus(r.status),
             time: rawDate
@@ -121,13 +135,12 @@ const IncidentMap: React.FC<{
             internalNote: r.internalNote || "",
             aiAnalysis: r.aiProbabilities || {},
             images: r.image || r.images || [],
-            type: mapCategoryCodeToType(r.category),
+            type: mapCategoryCodeToType(categoryInput),
           },
         };
       })
       .filter((inc) => {
-        const isValid =
-          !isNaN(inc.lat) && inc.lat !== 0 && inc.lat >= -90 && inc.lat <= 90;
+        const isValid = isValidLatitude(inc.lat) && isValidLongitude(inc.lng);
         if (!isValid && reports.length > 0) {
           console.warn("📍 Marker filtered out due to invalid coords:", inc);
         }
@@ -206,6 +219,14 @@ const IncidentMap: React.FC<{
     });
   }, [incidents, searchQuery, departmentFilter]);
 
+  const incidentById = useMemo(() => {
+    const byId = new globalThis.Map<string, IncidentMarker>();
+    incidents.forEach((incident) => {
+      byId.set(String(incident.incident.id), incident);
+    });
+    return byId;
+  }, [incidents]);
+
   useEffect(() => {
     const summary: IncidentSummary = {
       total: filteredIncidents.length,
@@ -275,6 +296,61 @@ const IncidentMap: React.FC<{
 
     void refreshData();
   }, [refreshToken, reloadReports, onRefreshComplete]);
+
+  useEffect(() => {
+    const zoomToIncident = (selected: BridgeIncident | null) => {
+      if (!selected) return;
+
+      const latFromDetail = Number(selected.latitude);
+      const lngFromDetail = Number(selected.longitude);
+      const matched = incidentById.get(String(selected.id));
+
+      const targetLat = isValidLatitude(latFromDetail)
+        ? latFromDetail
+        : Number(matched?.lat);
+      const targetLng = isValidLongitude(lngFromDetail)
+        ? lngFromDetail
+        : Number(matched?.lng);
+
+      if (!isValidLatitude(targetLat) || !isValidLongitude(targetLng)) return;
+
+      const latitude = targetLat;
+      const longitude = targetLng;
+
+      const nextView = {
+        latitude,
+        longitude,
+        zoom: 17,
+      };
+
+      setViewState((prev) => ({ ...prev, ...nextView }));
+      mapRef.current?.flyTo({
+        center: [longitude, latitude],
+        zoom: nextView.zoom,
+        duration: 900,
+        essential: true,
+      });
+    };
+
+    zoomToIncident(getActiveIncident());
+
+    const onIncidentSelected = (event: Event) => {
+      const detail = (event as CustomEvent<BridgeIncident>).detail;
+      zoomToIncident(detail ?? null);
+    };
+
+    window.addEventListener(
+      INCIDENT_SELECTED_EVENT,
+      onIncidentSelected as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        INCIDENT_SELECTED_EVENT,
+        onIncidentSelected as EventListener,
+      );
+    };
+  }, [incidentById]);
 
   return (
     <div
