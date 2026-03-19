@@ -19,6 +19,35 @@
   }
 }
 
+@layer components {
+  /* For Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2a #121212;
+  }
+
+  /* For Chrome, Edge, and Safari */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px !important; /* Strict slim width */
+    height: 5px !important; /* Strict slim height for horizontal */
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #121212;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 10px;
+    border: 1px solid #121212; /* Creates a tiny gap to look even slimmer */
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #3f3f3f;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
