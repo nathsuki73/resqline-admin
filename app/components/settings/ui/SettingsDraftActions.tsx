@@ -42,7 +42,7 @@ export default function SettingsDraftActions({
 					type="button"
 					onClick={onResetDraft}
 					disabled={!hasUnsavedChanges}
-					className="rounded-lg px-3 py-2 text-sm font-semibold text-[#9d9489] transition-colors hover:bg-[#23201d] hover:text-[#d4cdc3] disabled:cursor-not-allowed disabled:opacity-40"
+					className="ui-btn ui-btn-secondary"
 				>
 					Reset Draft
 				</button>

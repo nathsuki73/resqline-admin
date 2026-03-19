@@ -24,7 +24,7 @@ export default function SettingsSaveButton({
 			onClick={onClick}
 			disabled={disabled}
 			aria-busy={spinning}
-			className={`inline-flex items-center gap-2 rounded-lg bg-[#f57c00] px-4 py-2 text-sm font-semibold text-[#fff8f1] transition-colors hover:bg-[#e06d00] disabled:cursor-not-allowed disabled:opacity-40 ${className}`}
+			className={`ui-btn ui-btn-primary ${className}`}
 		>
 			<RotateCw size={14} className={spinning ? "animate-spin" : undefined} />
 			{label}

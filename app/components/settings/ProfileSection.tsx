@@ -1,21 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Check,
   Eye,
   EyeOff,
+  ImagePlus,
   Lock,
   LogOut,
+  PencilLine,
   Shield,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
-import SettingsSaveButton from "./ui/SettingsSaveButton";
 import SettingsToggleSwitch from "./ui/SettingsToggleSwitch";
 import useModalDissolve from "./ui/useModalDissolve";
 
 const MODAL_EXIT_MS = 260;
+const PROFILE_STORAGE_KEY = "resqline.dispatcher.profile";
+
+const getInitials = (firstName: string, lastName: string) => {
+  const first = firstName.trim().charAt(0).toUpperCase();
+  const last = lastName.trim().charAt(0).toUpperCase();
+  return `${first}${last}`.trim() || "RD";
+};
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -31,8 +41,6 @@ interface DispatcherProfile {
   department: string;
   location: string;
   badge: string;
-  avatarInitials: string;
-  avatarColor: string;
 }
 
 interface ProfileFormData {
@@ -433,8 +441,6 @@ const defaultProfileData: DispatcherProfile = {
   department: "BFP",
   location: "Quezon City",
   badge: "Senior",
-  avatarInitials: "RD",
-  avatarColor: "orange",
 };
 
 const defaultSecuritySettings: SecuritySettings = {
@@ -444,18 +450,26 @@ const defaultSecuritySettings: SecuritySettings = {
 };
 
 export default function ProfileSection() {
-  const [profile] = useState<DispatcherProfile>(defaultProfileData);
+  const profile = defaultProfileData;
   const [formData, setFormData] = useState<ProfileFormData>({
     firstName: profile.firstName,
     lastName: profile.lastName,
     email: profile.email,
     badgeNumber: profile.badgeNumber,
   });
+  const [avatarImage, setAvatarImage] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string>("");
   const [security, setSecurity] = useState<SecuritySettings>(
     defaultSecuritySettings
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isIdentityEditing, setIsIdentityEditing] = useState(false);
+  const [identityBackup, setIdentityBackup] = useState<{
+    formData: ProfileFormData;
+    avatarImage: string | null;
+  } | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   // Modal states
   const [showConfirmSignOut, setShowConfirmSignOut] = useState(false);
@@ -464,6 +478,30 @@ export default function ProfileSection() {
   // =========================================================================
   // EVENT HANDLERS
   // =========================================================================
+
+  useEffect(() => {
+    const storedValue = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+    if (!storedValue) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedValue) as Partial<ProfileFormData> & {
+        avatarImage?: string | null;
+      };
+
+      setFormData((prev) => ({
+        ...prev,
+        firstName: parsed.firstName ?? prev.firstName,
+        lastName: parsed.lastName ?? prev.lastName,
+        email: parsed.email ?? prev.email,
+        badgeNumber: parsed.badgeNumber ?? prev.badgeNumber,
+      }));
+      setAvatarImage(parsed.avatarImage ?? null);
+    } catch {
+      window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+    }
+  }, []);
 
   const handleProfileFieldChange = (field: keyof ProfileFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -494,11 +532,45 @@ export default function ProfileSection() {
       // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 800));
 
+      window.localStorage.setItem(
+        PROFILE_STORAGE_KEY,
+        JSON.stringify({
+          ...formData,
+          avatarImage,
+        })
+      );
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleStartCustomizeIdentity = () => {
+    setIdentityBackup({
+      formData: { ...formData },
+      avatarImage,
+    });
+    setAvatarError("");
+    setIsIdentityEditing(true);
+  };
+
+  const handleCancelCustomizeIdentity = () => {
+    if (identityBackup) {
+      setFormData(identityBackup.formData);
+      setAvatarImage(identityBackup.avatarImage);
+    }
+    setAvatarError("");
+    setIdentityBackup(null);
+    setIsIdentityEditing(false);
+  };
+
+  const handleSaveAndLockIdentity = async () => {
+    await handleSaveChanges();
+    setIdentityBackup(null);
+    setAvatarError("");
+    setIsIdentityEditing(false);
   };
 
   const handleSignOutAllSessions = async () => {
@@ -526,6 +598,58 @@ export default function ProfileSection() {
       console.error("Failed to change password:", error);
     }
   };
+
+  const handleAvatarPick = () => {
+    if (!isIdentityEditing) {
+      return;
+    }
+    avatarInputRef.current?.click();
+  };
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isIdentityEditing) {
+      return;
+    }
+
+    const selectedFile = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!selectedFile) {
+      return;
+    }
+
+    if (!selectedFile.type.startsWith("image/")) {
+      setAvatarError("Please upload an image file (PNG, JPG, SVG, or WebP).");
+      return;
+    }
+
+    const maxFileSize = 5 * 1024 * 1024;
+    if (selectedFile.size > maxFileSize) {
+      setAvatarError("Image must be 5MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : null;
+      setAvatarImage(result);
+      setAvatarError("");
+      setSaveSuccess(false);
+    };
+    reader.readAsDataURL(selectedFile);
+  };
+
+  const handleRemoveAvatar = () => {
+    if (!isIdentityEditing) {
+      return;
+    }
+
+    setAvatarImage(null);
+    setAvatarError("");
+    setSaveSuccess(false);
+  };
+
+  const avatarInitials = getInitials(formData.firstName, formData.lastName);
 
   // =========================================================================
   // JSX RENDER
@@ -557,30 +681,101 @@ export default function ProfileSection() {
                 <UserRound size={20} className="text-[#f57c00]" />
                 Dispatcher Identity
               </h2>
-              <SettingsSaveButton
-                onClick={handleSaveChanges}
-                disabled={isSaving}
-                spinning={isSaving}
-                label="Save Changes"
-                className={saveSuccess ? "bg-[rgba(67,160,71,0.15)] text-[#a5d6a7] hover:bg-[rgba(67,160,71,0.20)]" : ""}
-              />
+              {isIdentityEditing ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelCustomizeIdentity}
+                    className="flex items-center gap-1.5 rounded-lg border border-[#3a3632] bg-[#252220] px-3 py-1.5 text-[11px] font-semibold text-[#b8b0a6] transition-colors hover:border-[#4a4540] hover:bg-[#2c2925] hover:text-[#f0ede8]"
+                  >
+                    <X size={14} />
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveAndLockIdentity}
+                    disabled={isSaving}
+                    className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition-colors ${
+                      saveSuccess
+                        ? "border-[rgba(67,160,71,0.35)] bg-[rgba(67,160,71,0.15)] text-[#a5d6a7]"
+                        : "border-[rgba(245,124,0,0.3)] bg-[#f57c00] text-white hover:bg-[#c46200]"
+                    } ${isSaving ? "opacity-70" : ""}`}
+                  >
+                    <Check size={14} />
+                    {isSaving ? "Saving..." : "Save & Lock"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartCustomizeIdentity}
+                  className="flex items-center gap-1.5 rounded-lg border border-[rgba(245,124,0,0.3)] bg-[rgba(245,124,0,0.13)] px-3 py-1.5 text-[11px] font-semibold text-[#f57c00] transition-colors hover:bg-[rgba(245,124,0,0.20)]"
+                >
+                  <PencilLine size={14} />
+                  Customize
+                </button>
+              )}
             </div>
 
             <div className="p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-4">
               {/* Avatar */}
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[rgba(245,124,0,0.30)] bg-[rgba(245,124,0,0.13)] text-2xl font-bold text-[#f57c00]">
-                {profile.avatarInitials}
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[rgba(245,124,0,0.30)] bg-[rgba(245,124,0,0.13)] text-2xl font-bold text-[#f57c00]">
+                {avatarImage ? (
+                  <img
+                    src={avatarImage}
+                    alt={`${formData.firstName} ${formData.lastName} avatar`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  avatarInitials
+                )}
               </div>
 
               {/* Profile Info */}
               <div className="flex-1">
                 <h3 className="text-2xl font-bold leading-tight text-[#f0ede8]">
-                  {profile.firstName} {profile.lastName}
+                  {formData.firstName} {formData.lastName}
                 </h3>
                 <p className="mt-1 text-sm text-[#7a7268]">
                   {profile.roleTitle} • {profile.department} {profile.location}
                 </p>
+                {isIdentityEditing ? (
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAvatarPick}
+                      className="flex items-center gap-1.5 rounded-lg border border-[#3a3632] bg-[#252220] px-3 py-1.5 text-[11px] font-semibold text-[#b8b0a6] transition-colors hover:border-[#4a4540] hover:bg-[#2c2925] hover:text-[#f0ede8]"
+                    >
+                      <ImagePlus size={14} />
+                      Upload Picture
+                    </button>
+                    {avatarImage ? (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        className="flex items-center gap-1.5 rounded-lg border border-[rgba(229,57,53,0.35)] bg-[rgba(229,57,53,0.08)] px-3 py-1.5 text-[11px] font-semibold text-[#ef9a9a] transition-colors hover:bg-[rgba(229,57,53,0.16)]"
+                      >
+                        <Trash2 size={14} />
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-[#7a7268]">Identity is locked. Click Customize to edit details.</p>
+                )}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarFileChange}
+                  className="hidden"
+                />
+                {avatarError ? (
+                  <p className="mt-2 text-xs text-[#ef9a9a]">{avatarError}</p>
+                ) : isIdentityEditing ? (
+                  <p className="mt-2 text-xs text-[#7a7268]">PNG, JPG, SVG, or WebP up to 5MB.</p>
+                ) : null}
                 <div className="mt-3 flex gap-2">
                   <span className="rounded-full border border-[rgba(245,124,0,0.3)] bg-[rgba(245,124,0,0.13)] px-3 py-1 text-[10px] font-bold text-[#f57c00]">
                     {profile.department}
@@ -601,6 +796,7 @@ export default function ProfileSection() {
                 onChange={(value) =>
                   handleProfileFieldChange("firstName", value)
                 }
+                disabled={!isIdentityEditing}
                 autoComplete="given-name"
                 placeholder="Enter first name"
               />
@@ -611,6 +807,7 @@ export default function ProfileSection() {
                 onChange={(value) =>
                   handleProfileFieldChange("lastName", value)
                 }
+                disabled={!isIdentityEditing}
                 autoComplete="family-name"
                 placeholder="Enter last name"
               />
@@ -620,6 +817,7 @@ export default function ProfileSection() {
                 type="email"
                 value={formData.email}
                 onChange={(value) => handleProfileFieldChange("email", value)}
+                disabled={!isIdentityEditing}
                 autoComplete="email"
                 placeholder="Enter email address"
               />
@@ -630,6 +828,7 @@ export default function ProfileSection() {
                 onChange={(value) =>
                   handleProfileFieldChange("badgeNumber", value)
                 }
+                disabled={!isIdentityEditing}
                 autoComplete="off"
                 placeholder="e.g., BFP-QC-0142"
               />
