@@ -23,6 +23,8 @@ import {
 	type AlertToggleKey,
 	type SeverityKey,
 } from "./alertsLogic";
+import SettingsDraftActions from "./ui/SettingsDraftActions";
+import SettingsToggleSwitch from "./ui/SettingsToggleSwitch";
 
 type AlertToggleConfig = {
 	key: AlertToggleKey;
@@ -85,45 +87,6 @@ const SEVERITY_PRESETS: SeverityPreset[] = [
 		icon: <VolumeX size={14} />,
 	},
 ];
-
-
-function ToggleSwitch({
-	enabled,
-	onToggle,
-	label,
-	disabled = false,
-}: {
-	enabled: boolean;
-	onToggle: () => void;
-	label: string;
-	disabled?: boolean;
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onToggle}
-			className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-all duration-200 ${
-				enabled
-					? "border-[#f57c00] bg-[#f57c00]"
-					: "border-[#3a3632] bg-[#2c2925]"
-			} ${
-				disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer"
-			}`}
-			role="switch"
-			aria-checked={enabled}
-			aria-label={label}
-			aria-disabled={disabled}
-			disabled={disabled}
-		>
-			<span
-				className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
-					enabled ? "translate-x-5" : "translate-x-0"
-				}`}
-			/>
-		</button>
-	);
-}
-
 export default function AlertsSection() {
 	const [savedAlertSettings, setSavedAlertSettings] =
 		useState<Record<AlertToggleKey, boolean>>(INITIAL_ALERT_SETTINGS);
@@ -363,43 +326,14 @@ export default function AlertsSection() {
 				</div>
 
 				<section className="mb-4 rounded-xl border border-[#2a2724] bg-[#1e1c1a] px-4 py-3.5">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<div>
-							<span
-								className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none ${
-									hasUnsavedChanges
-										? "border-[rgba(245,124,0,0.35)] bg-[rgba(245,124,0,0.10)] text-[#f7a246]"
-										: "border-[rgba(125,192,122,0.35)] bg-[rgba(125,192,122,0.12)] text-[#8fd28c]"
-								}`}
-							>
-								{hasUnsavedChanges ? `${pendingChangesCount} Pending` : "All Saved"}
-							</span>
-							<p className="mt-1 text-xs font-semibold text-[#7a7268]">
-								{hasUnsavedChanges
-									? "Review updates and save in one intentional step."
-									: "No pending alert or sound edits."}
-							</p>
-						</div>
-
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={handleResetDraft}
-								disabled={!hasUnsavedChanges}
-								className="rounded-lg px-3 py-2 text-sm font-semibold text-[#9d9489] transition-colors hover:bg-[#23201d] hover:text-[#d4cdc3] disabled:cursor-not-allowed disabled:opacity-40"
-							>
-								Reset Draft
-							</button>
-							<button
-								type="button"
-								onClick={handleSave}
-								disabled={!hasUnsavedChanges}
-								className="rounded-lg bg-[#f57c00] px-4 py-2 text-sm font-semibold text-[#fff8f1] transition-colors hover:bg-[#e06d00] disabled:cursor-not-allowed disabled:opacity-40"
-							>
-								Save Changes
-							</button>
-						</div>
-					</div>
+					<SettingsDraftActions
+						hasUnsavedChanges={hasUnsavedChanges}
+						pendingChangesCount={pendingChangesCount}
+						pendingMessage="Review updates and save in one intentional step."
+						savedMessage="No pending alert or sound edits."
+						onResetDraft={handleResetDraft}
+						onSaveChanges={handleSave}
+					/>
 				</section>
 
 				<div className="space-y-4">
@@ -429,7 +363,7 @@ export default function AlertsSection() {
 												: ""}
 										</p>
 									</div>
-									<ToggleSwitch
+									<SettingsToggleSwitch
 										enabled={alertSettings[item.key]}
 										onToggle={() => handleToggle(item.key)}
 										label={`Toggle ${item.title}`}

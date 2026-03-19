@@ -2,6 +2,9 @@
 
 import React, { useState } from "react";
 import { AlertTriangle, Lock, Shield } from "lucide-react";
+import SettingsDraftActions from "./ui/SettingsDraftActions";
+import SettingsToggleSwitch from "./ui/SettingsToggleSwitch";
+import useModalDissolve from "./ui/useModalDissolve";
 
 type DepartmentAccessState = {
 	bfp: boolean;
@@ -64,24 +67,11 @@ function ToggleRow({
 				<p className="mt-1 text-xs text-[#7a7268]">{description}</p>
 			</div>
 
-			<button
-				type="button"
-				onClick={onToggle}
-				className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-all duration-200 ${
-					enabled
-						? "border-[#f57c00] bg-[#f57c00]"
-						: "border-[#3a3632] bg-[#2c2925]"
-				} cursor-pointer`}
-				role="switch"
-				aria-checked={enabled}
-				aria-label={`Toggle ${title}`}
-			>
-				<span
-					className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
-						enabled ? "translate-x-5" : "translate-x-0"
-					}`}
-				/>
-			</button>
+			<SettingsToggleSwitch
+				enabled={enabled}
+				onToggle={onToggle}
+				label={`Toggle ${title}`}
+			/>
 		</div>
 	);
 }
@@ -93,19 +83,33 @@ type SavePermissionsModalProps = {
 	pendingCount: number;
 };
 
+const MODAL_EXIT_MS = 260;
+
 function SavePermissionsModal({
 	open,
 	onCancel,
 	onConfirm,
 	pendingCount,
 }: SavePermissionsModalProps) {
-	if (!open) {
+	const { shouldRender, isVisible } = useModalDissolve(open, MODAL_EXIT_MS);
+
+	if (!shouldRender) {
 		return null;
 	}
 
 	return (
-		<div className="animate-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-			<div className="animate-modal-card w-full max-w-md rounded-2xl border border-[#2a2724] bg-[#1e1c1a] shadow-xl">
+		<div
+			className={`modal-overlay-dissolve fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 ${
+				isVisible ? "is-open" : "is-closed"
+			}`}
+		>
+			<div
+				className={`modal-card-dissolve w-full max-w-md rounded-2xl border border-[#2a2724] bg-[#1e1c1a] shadow-xl ${
+					isVisible
+						? "is-open"
+						: "is-closed"
+				}`}
+			>
 				<div className="border-b border-[#2a2724] px-5 py-4">
 					<h3 className="text-lg font-semibold text-[#f0ede8]">Apply Permission Changes?</h3>
 					<p className="mt-1 text-xs text-[#7a7268]">
@@ -225,45 +229,14 @@ export default function RolesSection() {
 				</div>
 
 				<section className="mb-6 rounded-xl border border-[#2a2724] bg-[#1e1c1a] px-4 py-3.5">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<div className="min-w-0">
-							<div className="flex items-center gap-2">
-								<span
-									className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none ${
-										hasUnsavedChanges
-											? "border-[rgba(245,124,0,0.35)] bg-[rgba(245,124,0,0.10)] text-[#f7a246]"
-											: "border-[rgba(125,192,122,0.35)] bg-[rgba(125,192,122,0.12)] text-[#8fd28c]"
-									}`}
-								>
-									{hasUnsavedChanges ? `${pendingChangesCount} Pending` : "All Saved"}
-								</span>
-							</div>
-							<p className="mt-1 text-xs font-semibold text-[#7a7268]">
-								{hasUnsavedChanges
-									? "Review updates, then use Review & Save to apply intentionally."
-									: "No pending permission edits."}
-							</p>
-						</div>
-
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={handleDiscard}
-								disabled={!hasUnsavedChanges}
-								className="rounded-lg px-3 py-2 text-sm font-semibold text-[#9d9489] transition-colors hover:bg-[#23201d] hover:text-[#d4cdc3] disabled:cursor-not-allowed disabled:opacity-40"
-							>
-								Reset Draft
-							</button>
-							<button
-								type="button"
-								onClick={handleSaveClick}
-								disabled={!hasUnsavedChanges}
-								className="rounded-lg bg-[#f57c00] px-4 py-2 text-sm font-semibold text-[#fff8f1] transition-colors hover:bg-[#e06d00] disabled:cursor-not-allowed disabled:opacity-40"
-							>
-								Review &amp; Save
-							</button>
-						</div>
-					</div>
+					<SettingsDraftActions
+						hasUnsavedChanges={hasUnsavedChanges}
+						pendingChangesCount={pendingChangesCount}
+						pendingMessage="Review updates and save in one intentional step."
+						savedMessage="No pending permission edits."
+						onResetDraft={handleDiscard}
+						onSaveChanges={handleSaveClick}
+					/>
 				</section>
 
 				<div className="space-y-4">

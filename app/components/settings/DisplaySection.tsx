@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Save, Monitor } from "lucide-react";
+import { Monitor, RotateCw } from "lucide-react";
+import SettingsDraftActions from "./ui/SettingsDraftActions";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -119,7 +120,7 @@ export default function DisplaySection() {
 			{toastMessage ? (
 				<div className="pointer-events-none fixed right-6 top-5 z-40 animate-modal-card">
 					<div className="flex items-center gap-2 rounded-lg border border-[#2a2724] bg-[#1f1c19] px-3 py-2 shadow-lg">
-						<Save size={14} className="text-[#f57c00]" />
+						<RotateCw size={14} className="text-[#f57c00]" />
 						<p className="text-xs font-semibold text-[#d9d1c8]">{toastMessage}</p>
 					</div>
 				</div>
@@ -136,44 +137,14 @@ export default function DisplaySection() {
 				</div>
 
 				<section className="mb-4 rounded-xl border border-[#2a2724] bg-[#1e1c1a] px-4 py-3.5">
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-						<div>
-							<span
-								className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold leading-none ${
-									hasUnsavedChanges
-										? "border-[rgba(245,124,0,0.35)] bg-[rgba(245,124,0,0.10)] text-[#f7a246]"
-										: "border-[rgba(125,192,122,0.35)] bg-[rgba(125,192,122,0.12)] text-[#8fd28c]"
-								}`}
-							>
-								{hasUnsavedChanges ? `${pendingChangesCount} Pending` : "All Saved"}
-							</span>
-							<p className="mt-1 text-xs font-semibold text-[#7a7268]">
-								{hasUnsavedChanges
-									? "Review updates and save in one intentional step."
-									: "No pending display edits."}
-							</p>
-						</div>
-
-						<div className="flex items-center gap-2">
-							<button
-								type="button"
-								onClick={handleResetDraft}
-								disabled={!hasUnsavedChanges}
-								className="rounded-lg px-3 py-2 text-sm font-semibold text-[#9d9489] transition-colors hover:bg-[#23201d] hover:text-[#d4cdc3] disabled:cursor-not-allowed disabled:opacity-40"
-							>
-								Reset Draft
-							</button>
-							<button
-								type="button"
-								onClick={handleSave}
-								disabled={!hasUnsavedChanges}
-								className="rounded-lg bg-[#f57c00] px-4 py-2 text-sm font-semibold text-[#fff8f1] transition-colors hover:bg-[#e06d00] disabled:cursor-not-allowed disabled:opacity-40 inline-flex items-center gap-2"
-							>
-								<Save size={14} />
-								Save
-							</button>
-						</div>
-					</div>
+					<SettingsDraftActions
+						hasUnsavedChanges={hasUnsavedChanges}
+						pendingChangesCount={pendingChangesCount}
+						pendingMessage="Review updates and save in one intentional step."
+						savedMessage="No pending display edits."
+						onResetDraft={handleResetDraft}
+						onSaveChanges={handleSave}
+					/>
 				</section>
 
 				<section className="overflow-hidden rounded-2xl border border-[#2a2724] bg-[#1e1c1a]">

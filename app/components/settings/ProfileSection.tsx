@@ -7,11 +7,15 @@ import {
   EyeOff,
   Lock,
   LogOut,
-  Save,
   Shield,
   UserRound,
   X,
 } from "lucide-react";
+import SettingsSaveButton from "./ui/SettingsSaveButton";
+import SettingsToggleSwitch from "./ui/SettingsToggleSwitch";
+import useModalDissolve from "./ui/useModalDissolve";
+
+const MODAL_EXIT_MS = 260;
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -73,11 +77,21 @@ const ConfirmationModal: React.FC<{
   onConfirm,
   onCancel,
 }) => {
-  if (!isOpen) return null;
+  const { shouldRender, isVisible } = useModalDissolve(isOpen, MODAL_EXIT_MS);
+
+  if (!shouldRender) return null;
 
   return (
-    <div className="animate-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="animate-modal-card flex w-full max-w-sm flex-col rounded-2xl border border-(--color-border-1) bg-[#1e1c1a] p-6 shadow-2xl">
+    <div
+      className={`modal-overlay-dissolve fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm ${
+        isVisible ? "is-open" : "is-closed"
+      }`}
+    >
+      <div
+        className={`modal-card-dissolve flex w-full max-w-sm flex-col rounded-2xl border border-(--color-border-1) bg-[#1e1c1a] p-6 shadow-2xl ${
+          isVisible ? "is-open" : "is-closed"
+        }`}
+      >
         <div className="mb-4 flex items-start justify-between gap-4">
           {isDangerous ? (
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[rgba(229,57,53,0.35)] bg-[rgba(229,57,53,0.12)] text-[#ef9a9a]">
@@ -196,11 +210,21 @@ const ChangePasswordModal: React.FC<{
     }
   };
 
-  if (!isOpen) return null;
+  const { shouldRender, isVisible } = useModalDissolve(isOpen, MODAL_EXIT_MS);
+
+  if (!shouldRender) return null;
 
   return (
-    <div className="animate-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="animate-modal-card flex w-full max-w-sm flex-col rounded-2xl border border-(--color-border-1) bg-[#1e1c1a] p-6 shadow-2xl">
+    <div
+      className={`modal-overlay-dissolve fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm ${
+        isVisible ? "is-open" : "is-closed"
+      }`}
+    >
+      <div
+        className={`modal-card-dissolve flex w-full max-w-sm flex-col rounded-2xl border border-(--color-border-1) bg-[#1e1c1a] p-6 shadow-2xl ${
+          isVisible ? "is-open" : "is-closed"
+        }`}
+      >
         <div className="mb-4 flex items-center justify-between gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[rgba(245,124,0,0.30)] bg-[rgba(245,124,0,0.13)] text-[#f57c00]">
             <Lock size={20} />
@@ -533,19 +557,13 @@ export default function ProfileSection() {
                 <UserRound size={20} className="text-[#f57c00]" />
                 Dispatcher Identity
               </h2>
-              <button
+              <SettingsSaveButton
                 onClick={handleSaveChanges}
                 disabled={isSaving}
-                aria-busy={isSaving}
-                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-all ${
-                  saveSuccess
-                    ? "border border-[rgba(67,160,71,0.35)] bg-[rgba(67,160,71,0.15)] text-[#a5d6a7]"
-                    : "border border-[rgba(245,124,0,0.3)] bg-[#f57c00] hover:bg-[#c46200]"
-                } ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}
-              >
-                <Save size={14} />
-                {saveSuccess ? "Changes Saved" : "Save Changes"}
-              </button>
+                spinning={isSaving}
+                label="Save Changes"
+                className={saveSuccess ? "bg-[rgba(67,160,71,0.15)] text-[#a5d6a7] hover:bg-[rgba(67,160,71,0.20)]" : ""}
+              />
             </div>
 
             <div className="p-5">
@@ -656,26 +674,13 @@ export default function ProfileSection() {
                   </p>
                   <p className="mt-0.5 text-xs text-[#7a7268]">SMS OTP on login</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() =>
+                <SettingsToggleSwitch
+                  enabled={security.twoFactorEnabled}
+                  onToggle={() =>
                     handleSecuritySettingChange("twoFactorEnabled", !security.twoFactorEnabled)
                   }
-                  className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border transition-all duration-200 ${
-                    security.twoFactorEnabled
-                      ? "border-[#f57c00] bg-[#f57c00]"
-                      : "border-[#3a3632] bg-[#2c2925]"
-                  } cursor-pointer`}
-                  role="switch"
-                  aria-checked={security.twoFactorEnabled}
-                  aria-label="Toggle Two-Factor Authentication"
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
-                      security.twoFactorEnabled ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
+                  label="Toggle Two-Factor Authentication"
+                />
               </div>
             </div>
 
