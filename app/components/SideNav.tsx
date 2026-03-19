@@ -1,12 +1,13 @@
 "use client";
 import Image from "next/image";
-import React, { useState } from "react";
+import React from "react";
 import { LayoutGrid, Map, FileText, Users, Settings } from "lucide-react";
 
 export type SideNavPanel = "triage" | "settings";
+export type SideNavTriageItem = "dashboard" | "map" | "reports" | "responders";
 
 type NavItem = {
-  id: string;
+  id: SideNavTriageItem;
   label: string;
   icon: React.ReactNode;
   badge?: boolean;
@@ -14,16 +15,19 @@ type NavItem = {
 
 type SideNavProps = {
   activePanel: SideNavPanel;
+  activeTriageItem: SideNavTriageItem;
   onPanelChange: (panel: SideNavPanel) => void;
+  onTriageItemSelect: (itemId: SideNavTriageItem) => void;
   onSettingsItemSelect?: (itemId: string) => void;
 };
 
 const SideNav: React.FC<SideNavProps> = ({
   activePanel,
+  activeTriageItem,
   onPanelChange,
+  onTriageItemSelect,
   onSettingsItemSelect,
 }) => {
-  const [activeIndex, setActiveIndex] = useState<number>(0);
   const isTriagePanel = activePanel === "triage";
 
   const navItems: NavItem[] = [
@@ -48,16 +52,16 @@ const SideNav: React.FC<SideNavProps> = ({
 
       {/* Navigation */}
       <nav className="flex flex-col gap-4">
-        {navItems.map((item, index) => (
+        {navItems.map((item) => (
           <div key={item.id} className="sidebar-tooltip-wrap group relative">
             <button
               onClick={() => {
-                setActiveIndex(index);
+                onTriageItemSelect(item.id);
                 onPanelChange("triage");
               }}
               className={`sidebar-nav-btn relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl 
                 ${
-                  isTriagePanel && activeIndex === index
+                  isTriagePanel && activeTriageItem === item.id
                     ? "is-active"
                     : ""
                 }`}
@@ -80,7 +84,14 @@ const SideNav: React.FC<SideNavProps> = ({
 
         <div className="sidebar-tooltip-wrap group relative">
           <button
-            className="sidebar-nav-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl"
+            type="button"
+            onClick={() => {
+              onTriageItemSelect("responders");
+              onPanelChange("triage");
+            }}
+            className={`sidebar-nav-btn flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl ${
+              isTriagePanel && activeTriageItem === "responders" ? "is-active" : ""
+            }`}
             aria-label="Responders"
             title="Responders"
           >
