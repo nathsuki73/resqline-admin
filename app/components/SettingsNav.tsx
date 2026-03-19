@@ -6,7 +6,6 @@ import {
 	Lock,
 	LucideIcon,
 	Monitor,
-	Users,
 	User,
 } from "lucide-react";
 
@@ -50,17 +49,6 @@ const SETTINGS_SECTIONS: SettingsNavSection[] = [
 				label: "Roles & Permissions",
 				icon: Lock,
 				badge: "RBAC",
-			},
-		],
-	},
-	{
-		id: "operations",
-		label: "Operations",
-		items: [
-			{
-				id: "responder-units",
-				label: "Responder Units",
-				icon: Users,
 			},
 		],
 	},
