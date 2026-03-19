@@ -1,11 +1,11 @@
 import SideNav from "./components/SideNav";
-import TriageFeed from "./components/TriageFeed";
+import ResponderDashboardComponent from "./components/ResponderDashboard";
 
-export default function ResponderDashboard() {
+export default function MainPage() {
   return (
     <div className="flex flex-row">
       <SideNav />
-      <TriageFeed />
+      <ResponderDashboardComponent />
     </div>
   );
 }
