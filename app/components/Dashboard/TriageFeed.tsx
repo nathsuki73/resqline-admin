@@ -3,7 +3,23 @@ import { Flame, Truck, Droplets, ShieldAlert, ChevronUp } from "lucide-react";
 import { setActiveIncident, type BridgeIncident } from "./incidentBridge";
 import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 
-type FeedType = "FIRE" | "CRASH" | "FLOOD" | "CRIME";
+type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
+
+// Map backend type to FeedType
+const mapType = (type: string): FeedType => {
+  switch (type.toLowerCase()) {
+    case "fire incident":
+      return "FIRE";
+    case "traffic accident":
+      return "CRASH";
+    case "flooding":
+      return "FLOOD";
+    case "medical emergency":
+      return "MEDICAL";
+    default:
+      return "OTHER";
+  }
+};
 
 type ReportFeedItem = {
   id: string;
@@ -217,7 +233,7 @@ const FeedItem: React.FC<{
   title: string;
   location: string;
   time: string;
-  type: "FIRE" | "CRASH" | "FLOOD" | "CRIME";
+  type: FeedType;
   percentage: string;
   status: string;
   active?: boolean;
@@ -232,38 +248,78 @@ const FeedItem: React.FC<{
   active,
   onSelect,
 }) => {
-  const configs = {
-    FIRE: {
-      icon: Flame,
-      color: "text-(--color-orange)",
-      bg: "bg-(--color-orange-glow)",
-      border: "border-(--color-orange-border)",
-      tag: "bg-(--color-orange-glow) text-(--color-orange)",
-    },
-    CRASH: {
-      icon: Truck,
-      color: "text-(--color-text-amber)",
-      bg: "bg-(--color-amber-glow)",
-      border: "border-(--color-amber-border)",
-      tag: "bg-(--color-amber-glow) text-(--color-text-amber)",
-    },
-    FLOOD: {
-      icon: Droplets,
-      color: "text-(--color-text-blue)",
-      bg: "bg-(--color-blue-glow)",
-      border: "border-(--color-blue-border)",
-      tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
-    },
-    CRIME: {
-      icon: ShieldAlert,
-      color: "text-(--color-text-purple)",
-      bg: "bg-(--color-purple-glow)",
-      border: "border-(--color-purple-border)",
-      tag: "bg-(--color-purple-glow) text-(--color-text-purple)",
-    },
-  };
-  const config = configs[type];
-  const Icon = config.icon;
+
+  
+  const configs: Record<FeedType, any> = {
+  FIRE: {
+    icon: Flame,
+    color: "text-(--color-orange)",
+    bg: "bg-(--color-orange-glow)",
+    border: "border-(--color-orange-border)",
+    tag: "bg-(--color-orange-glow) text-(--color-orange)",
+  },
+  CRASH: {
+    icon: Truck,
+    color: "text-(--color-text-amber)",
+    bg: "bg-(--color-amber-glow)",
+    border: "border-(--color-amber-border)",
+    tag: "bg-(--color-amber-glow) text-(--color-text-amber)",
+  },
+  FLOOD: {
+    icon: Droplets,
+    color: "text-(--color-text-blue)",
+    bg: "bg-(--color-blue-glow)",
+    border: "border-(--color-blue-border)",
+    tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
+  },
+  CRIME: {
+    icon: ShieldAlert,
+    color: "text-(--color-text-purple)",
+    bg: "bg-(--color-purple-glow)",
+    border: "border-(--color-purple-border)",
+    tag: "bg-(--color-purple-glow) text-(--color-text-purple)",
+  },
+  MEDICAL: {
+    icon: ShieldAlert,
+    color: "text-(--color-red)",
+    bg: "bg-(--color-red-glow)",
+    border: "border-(--color-red-border)",
+    tag: "bg-(--color-red-glow) text-(--color-red)",
+  },
+  OTHER: {
+    icon: ShieldAlert,
+    color: "text-(--color-text-3)",
+    bg: "bg-(--color-surface-2)",
+    border: "border-(--color-border-1)",
+    tag: "bg-(--color-surface-2) text-(--color-text-3)",
+  },
+};
+
+// Map live report types to FeedType
+const mapTypeToFeedType = (type: string): FeedType => {
+  switch (type.toLowerCase()) {
+    case "fire incident":
+    case "fire":
+      return "FIRE";
+    case "traffic accident":
+    case "crash":
+      return "CRASH";
+    case "flooding":
+    case "flood":
+      return "FLOOD";
+    case "medical emergency":
+      return "MEDICAL";
+    case "crime":
+      return "CRIME";
+    default:
+      return "OTHER";
+  }
+};
+
+// Usage inside FeedItem
+const feedType: FeedType = mapTypeToFeedType(type);
+const config = configs[feedType]; // now always safe
+const Icon = config.icon;
 
   return (
     <button
