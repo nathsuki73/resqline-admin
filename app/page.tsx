@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import AlertsSection from "./components/settings/AlertsSection";
+import AllReportsSection from "./components/AllReports/AllReportsSection";
 import IncidentMap from "./components/Dashboard/IncidentMap";
 import ResponderDashboardShell from "./components/Dashboard/ResponderDashboard";
 import DisplaySection from "./components/settings/DisplaySection";
 import ProfileSection from "./components/settings/ProfileSection";
 import RolesSection from "./components/settings/RolesSection";
+import ResponderSection from "./components/Responders/ResponderSection";
 import SettingsNav from "./components/SettingsNav";
 import SideNav, { SideNavPanel, SideNavTriageItem } from "./components/SideNav";
 import TriageFeed from "./components/Dashboard/TriageFeed";
@@ -15,6 +17,9 @@ export default function ResponderDashboard() {
   const [activePanel, setActivePanel] = useState<SideNavPanel>("triage");
   const [activeTriageItem, setActiveTriageItem] = useState<SideNavTriageItem>("dashboard");
   const [activeSettingsItem, setActiveSettingsItem] = useState<string>("profile-account");
+
+  // TODO: Replace with API call to detect active SOS incidents from backend
+  const hasSosAlerts = true; // Currently hardcoded; will be dynamic from API
 
   const renderTriageContent = () => {
     switch (activeTriageItem) {
@@ -33,23 +38,9 @@ export default function ResponderDashboard() {
           </main>
         );
       case "reports":
-        return (
-          <main className="flex h-screen flex-1 items-center justify-center bg-[#191716] p-8">
-            <div className="w-full max-w-xl rounded-2xl border border-[#2a2724] bg-[#1e1c1a] p-6">
-              <h1 className="text-xl font-semibold text-[#f0ede8]">All Reports</h1>
-              <p className="mt-2 text-sm text-[#7a7268]">Report list section is now connected to SideNav and ready for report table integration.</p>
-            </div>
-          </main>
-        );
+        return <AllReportsSection onOpenDashboard={() => setActiveTriageItem("dashboard")} />;
       case "responders":
-        return (
-          <main className="flex h-screen flex-1 items-center justify-center bg-[#191716] p-8">
-            <div className="w-full max-w-xl rounded-2xl border border-[#2a2724] bg-[#1e1c1a] p-6">
-              <h1 className="text-xl font-semibold text-[#f0ede8]">Responders</h1>
-              <p className="mt-2 text-sm text-[#7a7268]">Responder management section is now connected to SideNav and ready for team roster integration.</p>
-            </div>
-          </main>
-        );
+        return <ResponderSection />;
       default:
         return <TriageFeed />;
     }
@@ -78,6 +69,7 @@ export default function ResponderDashboard() {
         onPanelChange={setActivePanel}
         onTriageItemSelect={setActiveTriageItem}
         onSettingsItemSelect={setActiveSettingsItem}
+        hasSosAlerts={hasSosAlerts}
       />
       {activePanel === "settings" ? (
         <div className="flex flex-row flex-1">

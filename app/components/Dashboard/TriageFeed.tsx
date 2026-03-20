@@ -1,30 +1,198 @@
-import React from "react";
-import {
-  Flame,
-  Truck,
-  Droplets,
-  ShieldAlert,
-  Circle,
-  ChevronUp,
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Flame, Truck, Droplets, ShieldAlert, ChevronUp } from "lucide-react";
+import { setActiveIncident, type BridgeIncident } from "./incidentBridge";
+
+type FeedType = "FIRE" | "CRASH" | "FLOOD" | "CRIME";
+
+type ReportFeedItem = {
+  id: string;
+  title: string;
+  location: string;
+  time: string;
+  type: FeedType;
+  percentage: string;
+  status: string;
+  incident: BridgeIncident;
+};
+
+type SosFeedItem = {
+  id: string;
+  name: string;
+  location: string;
+  time: string;
+  incident: BridgeIncident;
+};
+
+// TODO(API): Replace mock report feed with GET /incidents?scope=triage
+// Keep this normalized shape so UI components stay decoupled from raw backend DTOs.
+const REPORT_FEED_ITEMS: ReportFeedItem[] = [
+  {
+    id: "report-0441",
+    title: "Structure Fire — 3-Storey Building",
+    location: "Brgy. Pag-asa, QC",
+    time: "2:41 PM",
+    type: "FIRE",
+    percentage: "97%",
+    status: "Under Review",
+    incident: {
+      id: "0441",
+      incidentType: "Structure Fire - 3-Storey Building",
+      location: "Brgy. Pag-asa, QC",
+      reporter: "Maria Santos",
+      reporterContact: "+63 917 123 4567",
+      department: "BFP",
+      severity: "Critical",
+      status: "under-review",
+      time: "2:41 PM",
+      reporterDescription: "May sunog sa ikalawang palapag. Makapal ang usok at may mga tao pang nasa loob.",
+      internalNote: "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
+    },
+  },
+  {
+    id: "report-0440",
+    title: "Major Road Accident",
+    location: "Commonwealth Ave, QC",
+    time: "2:39 PM",
+    type: "CRASH",
+    percentage: "94%",
+    status: "Submitted",
+    incident: {
+      id: "0440",
+      incidentType: "Major Road Accident - Multi-Vehicle",
+      location: "Commonwealth Ave, QC",
+      reporter: "Jose Reyes",
+      reporterContact: "+63 917 222 0111",
+      department: "CTMO",
+      severity: "Critical",
+      status: "submitted",
+      time: "2:39 PM",
+      reporterDescription: "Tatlong sasakyan ang nagbanggaan. Isang lane lang ang passable ngayon.",
+      internalNote: "CTMO dispatch escalation requested, ambulance coordination ongoing.",
+    },
+  },
+  {
+    id: "report-0439",
+    title: "Grass Fire — Vacant Lot",
+    location: "Batasan Hills, QC",
+    time: "2:28 PM",
+    type: "FIRE",
+    percentage: "88%",
+    status: "In Progress",
+    incident: {
+      id: "0439",
+      incidentType: "Grass Fire - Vacant Lot",
+      location: "Batasan Hills, QC",
+      reporter: "Carlos Dela Cruz",
+      reporterContact: "+63 917 333 1020",
+      department: "BFP",
+      severity: "High",
+      status: "in-progress",
+      time: "2:28 PM",
+      reporterDescription: "Nagsimula ang apoy sa damuhan, malapit sa poste ng kuryente.",
+      internalNote: "Containment perimeter established. Monitoring wind direction.",
+    },
+  },
+  {
+    id: "report-0438",
+    title: "Street Flooding",
+    location: "Fairview, QC",
+    time: "2:15 PM",
+    type: "FLOOD",
+    percentage: "79%",
+    status: "Under Review",
+    incident: {
+      id: "0438",
+      incidentType: "Street Flooding - Knee-Deep Water",
+      location: "Fairview, QC",
+      reporter: "Ana Ramos",
+      reporterContact: "+63 917 987 1100",
+      department: "PDRRMO",
+      severity: "Medium",
+      status: "under-review",
+      time: "2:15 PM",
+      reporterDescription: "Lumalim ang baha hanggang tuhod at mabagal na ang daloy ng sasakyan.",
+      internalNote: "PDRRMO assessment requested for drainage obstruction.",
+    },
+  },
+];
+
+// TODO(API): Replace mock SOS feed with GET /incidents/sos/active
+// SOS payload intentionally supports location-first incidents before caller narrative is provided.
+const SOS_FEED_ITEMS: SosFeedItem[] = [
+  {
+    id: "sos-901",
+    name: "Maria Santos",
+    location: "Brgy. Pag-asa, Quezon City",
+    time: "0:52",
+    incident: {
+      id: "901",
+      incidentType: "SOS Alert - Possible Structure Fire",
+      location: "Brgy. Pag-asa, Quezon City",
+      reporter: "Maria Santos",
+      reporterContact: "+63 917 123 4567",
+      department: "PDRRMO",
+      severity: "Critical",
+      status: "submitted",
+      time: "0:52",
+      reporterDescription: "SOS received with partial voice note: may makapal na usok at may na-trap sa loob. Caller sent location first before full report details.",
+      internalNote: "Location-first SOS. Verify scene, call reporter immediately, and capture photos/video evidence on arrival.",
+    },
+  },
+  {
+    id: "sos-902",
+    name: "Jose Reyes",
+    location: "Commonwealth Ave, QC",
+    time: "1:24",
+    incident: {
+      id: "902",
+      incidentType: "SOS Alert - Medical Distress",
+      location: "Commonwealth Ave, QC",
+      reporter: "Jose Reyes",
+      reporterContact: "+63 917 222 0111",
+      department: "PDRRMO",
+      severity: "Critical",
+      status: "submitted",
+      time: "1:24",
+      reporterDescription: "SOS triggered. Caller texted: nahihirapan huminga ang kasama, exact medical details not yet provided.",
+      internalNote: "Dispatch nearest available unit for welfare check and EMS triage. Gather scene photos and caller condition details.",
+    },
+  },
+];
 
 // --- Sub-Components ---
 
-const SOSCard: React.FC<{ name: string; location: string; time: string }> = ({
+const SOSCard: React.FC<{ name: string; location: string; time: string; active?: boolean; onSelect: () => void }> = ({
   name,
   location,
   time,
+  active,
+  onSelect,
 }) => (
-  <div className="flex items-center gap-3 rounded-lg border border-red-900/50 bg-red-950/20 p-3 mb-2 transition-hover hover:bg-red-950/30 cursor-pointer">
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-white shadow-lg shadow-red-900/40">
-      <ChevronUp size={24} strokeWidth={3} />
+  <button
+    type="button"
+    onClick={onSelect}
+    aria-pressed={active}
+    className={`mb-2 w-full rounded-xl border p-3 text-left transition-all ${
+      active
+        ? "border-(--color-red) bg-(--color-red-glow)"
+        : "border-(--color-border-1) bg-(--color-surface-1) hover:border-(--color-red-border) hover:bg-(--color-surface-2)"
+    }`}
+  >
+    <div className="flex items-center gap-3">
+      <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--color-red-border) bg-(--color-red) text-white">
+        <span className="absolute inline-flex h-10 w-10 animate-pulse rounded-full bg-(--color-red) opacity-20" />
+        <ChevronUp size={22} strokeWidth={3} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <h4 className="truncate text-sm font-semibold text-(--color-text-1)">{name}</h4>
+          <span className="shrink-0 text-[10px] text-(--color-text-3)">{time}</span>
+        </div>
+        <p className="truncate text-xs text-(--color-text-red)">{location}</p>
+        <p className="mt-1 text-[10px] text-(--color-text-3)">Location ping received. Waiting for user details.</p>
+      </div>
     </div>
-    <div className="flex-1 overflow-hidden">
-      <h4 className="truncate text-sm font-semibold text-red-100">{name}</h4>
-      <p className="truncate text-xs text-red-400/80">{location}</p>
-    </div>
-    <span className="text-xs font-mono text-red-500">{time}</span>
-  </div>
+  </button>
 );
 
 const FeedItem: React.FC<{
@@ -35,44 +203,51 @@ const FeedItem: React.FC<{
   percentage: string;
   status: string;
   active?: boolean;
-}> = ({ title, location, time, type, percentage, status, active }) => {
+  onSelect: () => void;
+}> = ({ title, location, time, type, percentage, status, active, onSelect }) => {
   const configs = {
     FIRE: {
       icon: Flame,
-      color: "text-orange-500",
-      bg: "bg-orange-500/10",
-      border: "border-orange-500/50",
-      tag: "bg-orange-950/40 text-orange-500",
+      color: "text-(--color-orange)",
+      bg: "bg-(--color-orange-glow)",
+      border: "border-(--color-orange-border)",
+      tag: "bg-(--color-orange-glow) text-(--color-orange)",
     },
     CRASH: {
       icon: Truck,
-      color: "text-yellow-500",
-      bg: "bg-yellow-500/10",
-      border: "border-yellow-500/20",
-      tag: "bg-yellow-950/40 text-yellow-500",
+      color: "text-(--color-text-amber)",
+      bg: "bg-(--color-amber-glow)",
+      border: "border-(--color-amber-border)",
+      tag: "bg-(--color-amber-glow) text-(--color-text-amber)",
     },
     FLOOD: {
       icon: Droplets,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/20",
-      tag: "bg-blue-950/40 text-blue-500",
+      color: "text-(--color-text-blue)",
+      bg: "bg-(--color-blue-glow)",
+      border: "border-(--color-blue-border)",
+      tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
     },
     CRIME: {
       icon: ShieldAlert,
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
-      border: "border-purple-500/20",
-      tag: "bg-purple-950/40 text-purple-500",
+      color: "text-(--color-text-purple)",
+      bg: "bg-(--color-purple-glow)",
+      border: "border-(--color-purple-border)",
+      tag: "bg-(--color-purple-glow) text-(--color-text-purple)",
     },
   };
   const config = configs[type];
   const Icon = config.icon;
 
   return (
-    <div
-      className={`relative flex gap-4 rounded-xl border p-4 mb-3 cursor-pointer transition-all hover:bg-white/5 
-      ${active ? "border-orange-500 bg-white/5 shadow-lg shadow-orange-900/10" : "border-gray-800 bg-[#1a1a1a]"}`}
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={active}
+      className={`relative mb-3 flex w-full cursor-pointer gap-4 rounded-xl border p-4 text-left transition-all ${
+        active
+          ? "border-(--color-orange-border) bg-(--color-orange-glow)"
+          : "border-(--color-border-1) bg-(--color-surface-1) hover:border-(--color-border-2) hover:bg-(--color-surface-2)"
+      }`}
     >
       <div
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${config.bg} ${config.color}`}
@@ -80,42 +255,86 @@ const FeedItem: React.FC<{
         <Icon size={20} />
       </div>
       <div className="flex-1">
-        <div className="flex justify-between items-start">
-          <h4 className="text-sm font-medium text-gray-200">{title}</h4>
-          <span className="text-[10px] text-gray-500">{time}</span>
+        <div className="flex items-start justify-between gap-3">
+          <h4 className="text-sm font-semibold text-(--color-text-1)">{title}</h4>
+          <span className="shrink-0 text-[10px] text-(--color-text-3)">{time}</span>
         </div>
-        <p className="text-xs text-gray-500 mt-0.5">{location}</p>
-        <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar">
+        <p className="mt-0.5 text-xs text-(--color-text-3)">{location}</p>
+        <div className="mt-3 flex items-center justify-between gap-2">
           <span
-            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${config.tag}`}
+            className={`rounded border px-2 py-0.5 text-[10px] font-bold uppercase ${config.border} ${config.tag}`}
           >
-            {type} - {percentage}
+            {type} · {percentage}
           </span>
-          <span className="px-2 py-0.5 rounded bg-blue-900/20 text-blue-400 text-[10px] font-medium border border-blue-900/30">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-(--color-text-blue)">
+            <span className="h-1.5 w-1.5 rounded-full bg-(--color-blue)" />
             {status}
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 
 // --- Main Component ---
 
 const TriageFeed: React.FC = () => {
-  const filters = ["All", "BFP", "CTMO", "PDRRMO", "PNP"];
+  const filters: Array<"All" | BridgeIncident["department"]> = ["All", "BFP", "CTMO", "PDRRMO", "PNP"];
+  const [activeCardId, setActiveCardId] = useState<string>(REPORT_FEED_ITEMS[0].id);
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<"All" | BridgeIncident["department"]>("All");
+
+  const filteredReportItems = useMemo(
+    () =>
+      selectedDepartmentFilter === "All"
+        ? REPORT_FEED_ITEMS
+        : REPORT_FEED_ITEMS.filter((item) => item.incident.department === selectedDepartmentFilter),
+    [selectedDepartmentFilter]
+  );
+
+  useEffect(() => {
+    // Initialize dashboard detail/header context with the highest-priority report on first load.
+    setActiveIncident(REPORT_FEED_ITEMS[0].incident);
+  }, []);
+
+  useEffect(() => {
+    // Do not override SOS selections with report fallback logic.
+    if (activeCardId.startsWith("sos-")) return;
+
+    // If current selection is filtered out, move focus to first visible card.
+    // This prevents stale selection IDs when responders switch department tabs.
+    const isActiveReportVisible = filteredReportItems.some((item) => item.id === activeCardId);
+    if (isActiveReportVisible) return;
+
+    const nextReport = filteredReportItems[0];
+    if (!nextReport) return;
+
+    setActiveCardId(nextReport.id);
+    setActiveIncident(nextReport.incident);
+  }, [filteredReportItems, activeCardId]);
+
+  const handleSelectReport = (item: ReportFeedItem) => {
+    // Single source of truth: selecting a card updates the bridge incident consumed by header/detail/map.
+    setActiveCardId(item.id);
+    setActiveIncident(item.incident);
+  };
+
+  const handleSelectSos = (item: SosFeedItem) => {
+    // SOS cards push a location-first placeholder incident for immediate responder context.
+    setActiveCardId(item.id);
+    setActiveIncident(item.incident);
+  };
 
   return (
-    <div className="flex h-screen w-80 flex-col bg-[#121212] text-gray-300 shadow-2xl overflow-hidden border-r border-gray-800">
+    <div className="flex h-screen w-77.5 flex-col overflow-hidden border-r border-(--color-border-1) bg-(--color-surface-1) text-(--color-text-2)">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between p-4 border-b border-gray-800 bg-[#121212] z-10">
-        <h2 className="text-sm font-semibold tracking-tight text-gray-100">
+      <div className="z-10 flex shrink-0 items-center justify-between border-b border-(--color-border-1) bg-(--color-surface-1) p-4">
+        <h2 className="text-sm font-semibold tracking-tight text-(--color-text-1)">
           Triage Feed
         </h2>
-        <div className="flex items-center gap-1.5 text-[10px] font-bold text-green-500 uppercase tracking-widest">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-(--color-text-green)">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-(--color-green) opacity-75"></span>
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-(--color-green)"></span>
           </span>
           Live
         </div>
@@ -123,39 +342,45 @@ const TriageFeed: React.FC = () => {
 
       {/* Main Scrollable Area */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-        {/* SOS Section */}
-        <div className="mb-6">
+  <div className="mb-6">
           <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-red-500 tracking-wider">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+            <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider text-(--color-text-red)">
+              <span className="relative h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-(--color-red) opacity-100"></span>
+                <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-(--color-red) opacity-75"></span>
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-(--color-red)"></span>
+              </span>
               SOS ACTIVE
             </div>
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-lg shadow-red-900/40">
-              2
+            <span className="relative flex h-6 w-6 items-center justify-center rounded-full border-2 border-(--color-red) bg-(--color-red) text-[10px] font-bold text-white shadow-lg">
+              <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-(--color-red) opacity-30"></span>
+              <span className="relative">2</span>
             </span>
           </div>
-          <SOSCard
-            name="Maria Santos"
-            location="Brgy. Pag-asa, Quezon City"
-            time="0:52"
-          />
-          <SOSCard
-            name="Jose Reyes"
-            location="Commonwealth Ave, QC"
-            time="1:24"
-          />
+          {SOS_FEED_ITEMS.map((item) => (
+            <SOSCard
+              key={item.id}
+              name={item.name}
+              location={item.location}
+              time={item.time}
+              active={activeCardId === item.id}
+              onSelect={() => handleSelectSos(item)}
+            />
+          ))}
         </div>
 
         <div className="mb-6 flex gap-2 overflow-x-auto custom-scrollbar pb-2">
-          {filters.map((f, i) => (
+          {filters.map((f) => (
             <button
               key={f}
-              className={`whitespace-nowrap rounded-full px-4 py-1 text-[10px] font-bold border transition-all cursor-pointer
-      ${
-        i === 0
-          ? "bg-orange-500/20 border-orange-500 text-orange-500"
-          : "bg-gray-800/40 border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300"
-      }`}
+              type="button"
+              onClick={() => setSelectedDepartmentFilter(f)}
+              aria-pressed={selectedDepartmentFilter === f}
+              className={`cursor-pointer whitespace-nowrap rounded-full border px-4 py-1 text-[10px] font-bold transition-all ${
+                selectedDepartmentFilter === f
+                  ? "border-(--color-orange-border) bg-(--color-orange-glow) text-(--color-orange)"
+                  : "border-(--color-border-2) bg-(--color-surface-2) text-(--color-text-3) hover:border-(--color-border-3) hover:text-(--color-text-2)"
+              }`}
             >
               {f}
             </button>
@@ -164,48 +389,34 @@ const TriageFeed: React.FC = () => {
 
         {/* Incident Feed Items */}
         <div className="flex flex-col gap-1">
-          <FeedItem
-            title="Structure Fire — 3-Storey Building"
-            location="Brgy. Pag-asa..."
-            time="2:41 PM"
-            type="FIRE"
-            percentage="97%"
-            status="Under Review"
-            active
-          />
-          <FeedItem
-            title="Major Road Accident"
-            location="Commonwealth Ave..."
-            time="2:39 PM"
-            type="CRASH"
-            percentage="94%"
-            status="Submitted"
-          />
-          <FeedItem
-            title="Grass Fire — Vacant Lot"
-            location="Batasan Hills..."
-            time="2:28 PM"
-            type="FIRE"
-            percentage="88%"
-            status="In Progress"
-          />
-          <FeedItem
-            title="Street Flooding"
-            location="Fairview, QC"
-            time="2:15 PM"
-            type="FLOOD"
-            percentage="79%"
-            status="Under Review"
-          />
+          {filteredReportItems.map((item) => (
+            <FeedItem
+              key={item.id}
+              title={item.title}
+              location={item.location}
+              time={item.time}
+              type={item.type}
+              percentage={item.percentage}
+              status={item.status}
+              active={activeCardId === item.id}
+              onSelect={() => handleSelectReport(item)}
+            />
+          ))}
+          {filteredReportItems.length === 0 ? (
+            <div className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) px-3 py-4 text-xs text-(--color-text-3)">
+              No reports in {selectedDepartmentFilter} right now.
+            </div>
+          ) : null}
         </div>
       </div>
 
       {/* Footer Stats - Fixed at bottom */}
-      <div className="grid grid-cols-4 border-t border-gray-800 bg-[#0a0a0a] py-4 shrink-0">
-        <StatBlock value="2" label="SOS" color="text-red-500" />
-        <StatBlock value="8" label="Active" color="text-orange-500" />
-        <StatBlock value="3" label="Pending" color="text-yellow-500" />
-        <StatBlock value="14" label="Resolved" color="text-green-500" />
+      {/* TODO(API): Replace static counters with aggregate metrics from triage summary endpoint */}
+      <div className="grid shrink-0 grid-cols-4 border-t border-(--color-border-1) bg-(--color-bg) py-4">
+        <StatBlock value="2" label="SOS" color="text-(--color-red)" />
+        <StatBlock value="8" label="Active" color="text-(--color-orange)" />
+        <StatBlock value="3" label="Pending" color="text-(--color-text-amber)" />
+        <StatBlock value="14" label="Resolved" color="text-(--color-text-green)" />
       </div>
     </div>
   );
@@ -221,9 +432,9 @@ const StatBlock = ({
   label: string;
   color: string;
 }) => (
-  <div className="flex flex-col items-center border-r border-gray-800 last:border-0">
+  <div className="flex flex-col items-center border-r border-(--color-border-1) last:border-0">
     <p className={`text-xl font-bold leading-none ${color}`}>{value}</p>
-    <p className="mt-1 text-[9px] font-medium uppercase tracking-tighter text-gray-500">
+    <p className="mt-1 text-[9px] font-medium uppercase tracking-tight text-(--color-text-3)">
       {label}
     </p>
   </div>

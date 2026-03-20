@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Map, { Marker, NavigationControl } from "react-map-gl/mapbox";
-import { MapPin, ExternalLink, Circle } from "lucide-react";
+import { MapPin, ExternalLink } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 interface IncidentMarker {
@@ -17,6 +17,7 @@ interface IncidentMapProps {
 }
 
 const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
+  // View state is local to keep map panning/zooming isolated from global dashboard rerenders.
   const [viewState, setViewState] = useState({
     longitude: 121.0287,
     latitude: 14.6574,
@@ -34,30 +35,32 @@ const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
     },
     { id: "3", lat: 14.654, lng: 121.033, label: "Grass Fire", type: "Fire" },
   ];
+  // TODO(API): Replace marker seed data with live incidents endpoint + websocket diff updates.
 
   const getMarkerColor = (type: string) => {
-    if (type === "SOS") return "bg-red-500 ring-red-500/40";
-    if (type === "Fire") return "bg-orange-500 ring-orange-500/40";
-    return "bg-blue-500 ring-blue-500/40";
+    if (type === "SOS") return "bg-(--color-red) ring-(--color-red-border)";
+    if (type === "Fire") return "bg-(--color-orange) ring-(--color-orange-border)";
+    return "bg-(--color-blue) ring-(--color-blue-border)";
   };
 
   return (
-    <div className="relative h-full h-[500px] bg-[#0a0a0a] overflow-hidden rounded-xl border border-gray-800">
+    <div className="relative h-full overflow-hidden rounded-xl border border-(--color-border-1) bg-(--color-bg)">
       {/* Map Header Overlay */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
-        <div className="flex items-center gap-2 text-orange-500">
+      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-linear-to-b from-black/80 to-transparent p-4">
+        <div className="flex items-center gap-2 text-(--color-orange)">
           <MapPin size={18} />
-          <span className="text-xs font-bold uppercase tracking-widest text-gray-300">
+          <span className="text-xs font-bold uppercase tracking-widest text-(--color-text-2)">
             Incident Location
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] font-mono text-gray-500">
+          <span className="text-[10px] text-(--color-text-3)">
             14.6574°N 121.0287°E
           </span>
           <button
+            type="button"
             onClick={onOpenFullMap}
-            className="flex items-center gap-2 bg-gray-800/80 hover:bg-gray-700 text-gray-200 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border border-gray-700"
+            className="ui-btn ui-btn-secondary border-(--color-border-2) bg-black/45 text-(--color-text-2)"
           >
             Open in Maps <ExternalLink size={12} />
           </button>
@@ -68,10 +71,11 @@ const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
       <Map
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
-        mapStyle="mapbox://styles/mapbox/dark-v11" // Sleek dark theme
+        mapStyle="mapbox://styles/mapbox/dark-v11" // Keep theme centralized for consistent operations display.
         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
         style={{ width: "100%", height: "100vh" }}
       >
+        {/* TODO(API): Validate NEXT_PUBLIC_MAPBOX_TOKEN at startup and provide fallback map state if unavailable. */}
         <NavigationControl position="bottom-right" />
 
         {incidents.map((incident) => (
@@ -84,21 +88,21 @@ const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
             <div className="flex flex-col items-center group cursor-pointer">
               {/* Pulsing Marker */}
               <div
-                className={`relative h-4 w-4 rounded-full ${getMarkerColor(incident.type)} ring-4 shadow-xl`}
+                className={`relative h-4 w-4 rounded-full ring-4 shadow-xl ${getMarkerColor(incident.type)}`}
               >
                 {incident.type === "SOS" && (
-                  <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75"></span>
+                  <span className="absolute inset-0 animate-ping rounded-full bg-(--color-red) opacity-75"></span>
                 )}
               </div>
 
               {/* Label */}
-              <div className="mt-2 bg-black/80 border border-gray-800 px-2 py-1 rounded text-[10px] font-bold text-gray-200 whitespace-nowrap shadow-2xl">
+              <div className="mt-2 whitespace-nowrap rounded border border-(--color-border-1) bg-black/80 px-2 py-1 text-[10px] font-bold text-(--color-text-2) shadow-2xl">
                 {incident.label}
               </div>
 
               {/* Selection Ring (Specific to your image for Maria S.) */}
               {incident.id === "2" && (
-                <div className="absolute -top-1 h-6 w-6 rounded-full border-2 border-orange-500/50 -z-10 animate-pulse" />
+                <div className="-z-10 absolute -top-1 h-6 w-6 animate-pulse rounded-full border-2 border-(--color-orange-border)" />
               )}
             </div>
           </Marker>
@@ -106,19 +110,19 @@ const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
       </Map>
 
       {/* Legend Overlay */}
-      <div className="absolute top-20 right-4 z-10 bg-black/60 border border-gray-800 p-3 rounded-xl backdrop-blur-md">
-        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">
+      <div className="absolute right-4 top-20 z-10 rounded-xl border border-(--color-border-1) bg-black/60 p-3 backdrop-blur-md">
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-(--color-text-3)">
           Legend
         </p>
         <div className="flex flex-col gap-2">
-          <LegendItem color="bg-red-500" label="SOS" />
-          <LegendItem color="bg-orange-500" label="Fire" />
-          <LegendItem color="bg-blue-500" label="Flood" />
+          <LegendItem color="bg-(--color-red)" label="SOS" />
+          <LegendItem color="bg-(--color-orange)" label="Fire" />
+          <LegendItem color="bg-(--color-blue)" label="Flood" />
         </div>
       </div>
 
       {/* Footer Coordinates Overlay */}
-      <div className="absolute bottom-6 left-6 z-10 bg-black/60 border border-gray-800 px-3 py-1.5 rounded-lg text-[10px] font-mono text-gray-400 backdrop-blur-sm">
+      <div className="absolute bottom-6 left-6 z-10 rounded-lg border border-(--color-border-1) bg-black/60 px-3 py-1.5 text-[10px] text-(--color-text-3) backdrop-blur-sm">
         14.6574°N · 121.0287°E · Brgy. Pag-asa, QC
       </div>
     </div>
@@ -129,7 +133,7 @@ const IncidentMap: React.FC<IncidentMapProps> = ({ onOpenFullMap }) => {
 const LegendItem = ({ color, label }: { color: string; label: string }) => (
   <div className="flex items-center gap-2">
     <div className={`h-2 w-2 rounded-full ${color}`} />
-    <span className="text-[10px] font-bold text-gray-300 uppercase tracking-tight">
+    <span className="text-[10px] font-bold uppercase tracking-tight text-(--color-text-2)">
       {label}
     </span>
   </div>
