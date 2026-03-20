@@ -2,19 +2,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Flame, Truck, Droplets, ShieldAlert, ChevronUp } from "lucide-react";
 import { setActiveIncident, type BridgeIncident } from "./incidentBridge";
 import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
+import { useReports } from "@/app/hooks/useReports";
 
 type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
 
-// Map backend type to FeedType
-const mapType = (type: string): FeedType => {
-  switch (type.toLowerCase()) {
-    case "fire incident":
+const mapCategoryToType = (category: number): FeedType => {
+  switch (category) {
+    case 3:
       return "FIRE";
-    case "traffic accident":
+    case 2:
       return "CRASH";
-    case "flooding":
+    case 4:
       return "FLOOD";
-    case "medical emergency":
+    case 1:
       return "MEDICAL";
     default:
       return "OTHER";
@@ -248,78 +248,76 @@ const FeedItem: React.FC<{
   active,
   onSelect,
 }) => {
-
-  
   const configs: Record<FeedType, any> = {
-  FIRE: {
-    icon: Flame,
-    color: "text-(--color-orange)",
-    bg: "bg-(--color-orange-glow)",
-    border: "border-(--color-orange-border)",
-    tag: "bg-(--color-orange-glow) text-(--color-orange)",
-  },
-  CRASH: {
-    icon: Truck,
-    color: "text-(--color-text-amber)",
-    bg: "bg-(--color-amber-glow)",
-    border: "border-(--color-amber-border)",
-    tag: "bg-(--color-amber-glow) text-(--color-text-amber)",
-  },
-  FLOOD: {
-    icon: Droplets,
-    color: "text-(--color-text-blue)",
-    bg: "bg-(--color-blue-glow)",
-    border: "border-(--color-blue-border)",
-    tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
-  },
-  CRIME: {
-    icon: ShieldAlert,
-    color: "text-(--color-text-purple)",
-    bg: "bg-(--color-purple-glow)",
-    border: "border-(--color-purple-border)",
-    tag: "bg-(--color-purple-glow) text-(--color-text-purple)",
-  },
-  MEDICAL: {
-    icon: ShieldAlert,
-    color: "text-(--color-red)",
-    bg: "bg-(--color-red-glow)",
-    border: "border-(--color-red-border)",
-    tag: "bg-(--color-red-glow) text-(--color-red)",
-  },
-  OTHER: {
-    icon: ShieldAlert,
-    color: "text-(--color-text-3)",
-    bg: "bg-(--color-surface-2)",
-    border: "border-(--color-border-1)",
-    tag: "bg-(--color-surface-2) text-(--color-text-3)",
-  },
-};
+    FIRE: {
+      icon: Flame,
+      color: "text-(--color-orange)",
+      bg: "bg-(--color-orange-glow)",
+      border: "border-(--color-orange-border)",
+      tag: "bg-(--color-orange-glow) text-(--color-orange)",
+    },
+    CRASH: {
+      icon: Truck,
+      color: "text-(--color-text-amber)",
+      bg: "bg-(--color-amber-glow)",
+      border: "border-(--color-amber-border)",
+      tag: "bg-(--color-amber-glow) text-(--color-text-amber)",
+    },
+    FLOOD: {
+      icon: Droplets,
+      color: "text-(--color-text-blue)",
+      bg: "bg-(--color-blue-glow)",
+      border: "border-(--color-blue-border)",
+      tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
+    },
+    CRIME: {
+      icon: ShieldAlert,
+      color: "text-(--color-text-purple)",
+      bg: "bg-(--color-purple-glow)",
+      border: "border-(--color-purple-border)",
+      tag: "bg-(--color-purple-glow) text-(--color-text-purple)",
+    },
+    MEDICAL: {
+      icon: ShieldAlert,
+      color: "text-(--color-red)",
+      bg: "bg-(--color-red-glow)",
+      border: "border-(--color-red-border)",
+      tag: "bg-(--color-red-glow) text-(--color-red)",
+    },
+    OTHER: {
+      icon: ShieldAlert,
+      color: "text-(--color-text-3)",
+      bg: "bg-(--color-surface-2)",
+      border: "border-(--color-border-1)",
+      tag: "bg-(--color-surface-2) text-(--color-text-3)",
+    },
+  };
 
-// Map live report types to FeedType
-const mapTypeToFeedType = (type: string): FeedType => {
-  switch (type.toLowerCase()) {
-    case "fire incident":
-    case "fire":
-      return "FIRE";
-    case "traffic accident":
-    case "crash":
-      return "CRASH";
-    case "flooding":
-    case "flood":
-      return "FLOOD";
-    case "medical emergency":
-      return "MEDICAL";
-    case "crime":
-      return "CRIME";
-    default:
-      return "OTHER";
-  }
-};
+  // Map live report types to FeedType
+  const mapTypeToFeedType = (type: string): FeedType => {
+    switch (type.toLowerCase()) {
+      case "fire incident":
+      case "fire":
+        return "FIRE";
+      case "traffic accident":
+      case "crash":
+        return "CRASH";
+      case "flooding":
+      case "flood":
+        return "FLOOD";
+      case "medical emergency":
+        return "MEDICAL";
+      case "crime":
+        return "CRIME";
+      default:
+        return "OTHER";
+    }
+  };
 
-// Usage inside FeedItem
-const feedType: FeedType = mapTypeToFeedType(type);
-const config = configs[feedType]; // now always safe
-const Icon = config.icon;
+  // Usage inside FeedItem
+  const feedType: FeedType = mapTypeToFeedType(type);
+  const config = configs[feedType]; // now always safe
+  const Icon = config.icon;
 
   return (
     <button
@@ -364,20 +362,18 @@ const Icon = config.icon;
 };
 
 // --- Main Component ---
-const mapStatusToBridgeIncident = (
-  status: string,
-): BridgeIncident["status"] => {
-  switch (status.toLowerCase()) {
-    case "submitted":
-      return "submitted";
-    case "under review":
-      return "under-review";
-    case "in progress":
-      return "in-progress";
-    case "resolved":
-      return "resolved";
+const mapStatus = (status: number): string => {
+  switch (status) {
+    case 1:
+      return "Submitted";
+    case 2:
+      return "Under Review";
+    case 3:
+      return "In Progress";
+    case 4:
+      return "Resolved";
     default:
-      return "submitted"; // fallback to a safe default
+      return "Submitted";
   }
 };
 
@@ -398,37 +394,43 @@ const TriageFeed: React.FC = () => {
 
   const { reports: realtimeReports, connectionStatus } = useRealtimeReports();
 
+  const { reports, loading } = useReports();
+
+  const mergedReports = [...reports, ...realtimeReports];
+
   const liveReportItems: ReportFeedItem[] = useMemo(
     () =>
-      realtimeReports.map((r) => ({
+      mergedReports.map((r) => ({
         id: r.id,
-        title: r.title,
-        location: `Lat ${r.latitude.toFixed(3)}, Lon ${r.longitude.toFixed(3)}`,
-        time: new Date(r.timestamp).toLocaleTimeString([], {
+        title: r.description || "No description",
+        location:
+          r.location?.reverseGeoCode ??
+          `Lat ${r.location?.latitude}, Lon ${r.location?.longitude}`,
+        time: new Date(r.createdAt).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         }),
-        type: r.type as FeedType,
-        percentage: `${r.confidence}%`,
-        status: r.status,
+        type: mapCategoryToType(r.category),
+        percentage: "90%", // no confidence in API → fake for now
+        status: mapStatus(r.status),
         incident: {
           id: r.id,
-          incidentType: `${r.type} - ${r.title}`,
-          location: `Lat ${r.latitude.toFixed(3)}, Lon ${r.longitude.toFixed(3)}`,
+          incidentType: r.description,
+          location: r.location?.reverseGeoCode ?? "Unknown",
           reporter: "Unknown",
           reporterContact: "",
           department: "BFP",
           severity: "Medium",
-          status: mapStatusToBridgeIncident(r.status),
-          time: new Date(r.timestamp).toLocaleTimeString([], {
+          status: "submitted",
+          time: new Date(r.createdAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           }),
-          reporterDescription: "",
+          reporterDescription: r.description,
           internalNote: "",
         },
       })),
-    [realtimeReports],
+    [mergedReports],
   );
 
   const filteredReportItems = useMemo(
@@ -445,6 +447,14 @@ const TriageFeed: React.FC = () => {
     // Initialize dashboard detail/header context with the highest-priority report on first load.
     setActiveIncident(REPORT_FEED_ITEMS[0].incident);
   }, []);
+
+  useEffect(() => {
+    console.log("API reports:", reports);
+  }, [reports]);
+
+  useEffect(() => {
+    console.log("Realtime reports:", realtimeReports);
+  }, [realtimeReports]);
 
   useEffect(() => {
     // Do not override SOS selections with report fallback logic.
