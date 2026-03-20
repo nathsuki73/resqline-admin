@@ -7,11 +7,10 @@ import {
   setActiveIncident,
   type BridgeIncident,
 } from "./incidentBridge";
-import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 import { useReports } from "@/app/hooks/useReports";
 import { StatBlock } from "./TriageFeedComponents/StatBlock";
 import { FeedItem } from "./TriageFeedComponents/FeedItem";
-import { fetchReportById, updateReportStatus } from "@/app/services/reports";
+import { fetchReportById } from "@/app/services/reports";
 import {
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
@@ -21,9 +20,10 @@ import {
   type IncidentStatusSlug,
   mapApiStatusToLabel,
   mapApiStatusToSlug,
-  mapSlugToApiStatus,
-  statusStep,
+  mapResponderStatusToMobileStatus,
+  mergeStatusWithoutRegression,
 } from "@/app/constants/reportStatus";
+import { transitionReportStatus } from "@/app/services/reportTransitionService";
 
 // --- Types ---
 type FeedType = IncidentCategoryType;
@@ -49,19 +49,17 @@ const TriageFeed: React.FC = () => {
     "All" | BridgeIncident["department"]
   >("All");
 
-  const { reports: apiReports, loading, mutate } = useReports();
-  const { reports: realtimeReports } = useRealtimeReports();
-
-  // Single source of truth for all reports
-  const mergedReports = useMemo(
-    () => [...realtimeReports, ...apiReports],
-    [realtimeReports, apiReports],
-  );
+  const { reports: mergedReports, loading } = useReports();
 
   // Transform raw reports into Feed Item shape with SignalR + API compatibility
   const liveReportItems: ReportFeedItem[] = useMemo(
     () =>
       mergedReports.map((r) => {
+        const sourceStatus = mapApiStatusToSlug(r.status);
+        const effectiveStatus = mergeStatusWithoutRegression(
+          statusOverridesById[r.id] ?? sourceStatus,
+          sourceStatus,
+        );
         const incidentCategoryName = mapCategoryCodeToType(r.category);
 
         // 🟢 1. Handle Location Fallback (API uses 'location', SignalR uses 'reportedAt')
@@ -89,9 +87,7 @@ const TriageFeed: React.FC = () => {
           time: timeDisplay,
           type: incidentCategoryName,
           percentage: "90%",
-          status: mapApiStatusToLabel(
-            statusOverridesById[r.id] ?? r.status,
-          ),
+          status: mapApiStatusToLabel(effectiveStatus),
           incident: {
             id: r.id,
             type: incidentCategoryName,
@@ -113,8 +109,10 @@ const TriageFeed: React.FC = () => {
               | "Medium"
               | "Low",
             // 🟢 Sync status slug for the Header Progress Bar
-            status: (statusOverridesById[r.id] ??
-              mapApiStatusToSlug(r.status)) as BridgeIncident["status"],
+            status: effectiveStatus as BridgeIncident["status"],
+            mobileStatus: mapResponderStatusToMobileStatus(
+              effectiveStatus,
+            ),
             time: timeDisplay,
             reporterDescription: r.description || "",
             internalNote: r.internalNote || "",
@@ -189,14 +187,17 @@ const TriageFeed: React.FC = () => {
 
       // Move to 'Under Review' if it's currently 'Submitted'
       if (item.status === "Submitted") {
-        await updateReportStatus(item.id, mapSlugToApiStatus("under-review"));
+        await transitionReportStatus({
+          reportId: item.id,
+          nextStatus: "under-review",
+          origin: "triage",
+        });
         currentStatusSlug = "under-review";
         setStatusOverridesById((prev) => ({
           ...prev,
           [item.id]: currentStatusSlug,
         }));
         setActiveIncident({ ...item.incident, status: currentStatusSlug });
-        await mutate(); // Refresh list in background
       }
 
       // 2. Fetch full details
@@ -210,10 +211,16 @@ const TriageFeed: React.FC = () => {
         reporterDescription:
           fullData.description || item.incident.reporterDescription,
         // Avoid regressions from stale payload by keeping the furthest-known status.
-        status: (statusStep(mapApiStatusToSlug(fullData.status)) <
-        statusStep(currentStatusSlug)
-          ? currentStatusSlug
-          : mapApiStatusToSlug(fullData.status)) as BridgeIncident["status"],
+        status: mergeStatusWithoutRegression(
+          currentStatusSlug,
+          mapApiStatusToSlug(fullData.status),
+        ) as BridgeIncident["status"],
+        mobileStatus: mapResponderStatusToMobileStatus(
+          mergeStatusWithoutRegression(
+            currentStatusSlug,
+            mapApiStatusToSlug(fullData.status),
+          ),
+        ),
       };
 
       setStatusOverridesById((prev) => ({
@@ -293,17 +300,26 @@ const TriageFeed: React.FC = () => {
           color="text-(--color-red)"
         />
         <StatBlock
-          value={mergedReports.filter((r) => r.status < 4).length.toString()}
+          value={mergedReports
+            .filter((r) => {
+              const slug = mapApiStatusToSlug(r.status);
+              return slug !== "resolved" && slug !== "rejected";
+            })
+            .length.toString()}
           label="Active"
           color="text-(--color-orange)"
         />
         <StatBlock
-          value={mergedReports.filter((r) => r.status === 1).length.toString()}
+          value={mergedReports
+            .filter((r) => mapApiStatusToSlug(r.status) === "submitted")
+            .length.toString()}
           label="New"
           color="text-(--color-text-amber)"
         />
         <StatBlock
-          value={mergedReports.filter((r) => r.status === 4).length.toString()}
+          value={mergedReports
+            .filter((r) => mapApiStatusToSlug(r.status) === "resolved")
+            .length.toString()}
           label="Resolved"
           color="text-(--color-text-green)"
         />

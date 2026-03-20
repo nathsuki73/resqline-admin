@@ -14,7 +14,7 @@ import SideNav, { SideNavPanel, SideNavTriageItem } from "./components/SideNav";
 import TriageFeed from "./components/Dashboard/TriageFeed";
 import OperationalMapView from "./components/MapView/OperationalMapView";
 import { useReports } from "./hooks/useReports";
-import { useRealtimeReports } from "./hooks/useRealTimeReports";
+import { isTerminalStatus } from "./constants/reportStatus";
 
 export default function ResponderDashboard() {
   const [activePanel, setActivePanel] = useState<SideNavPanel>("triage");
@@ -23,27 +23,16 @@ export default function ResponderDashboard() {
   const [activeSettingsItem, setActiveSettingsItem] =
     useState<string>("profile-account");
 
-  const { reports: apiReports } = useReports();
-  const { reports: realtimeReports } = useRealtimeReports();
+  const { reports } = useReports();
 
   const hasSosAlerts = useMemo(() => {
-    const isClosedStatus = (status: unknown) => {
-      if (typeof status === "number") return status === 3 || status === 4;
-      if (typeof status === "string") {
-        const normalized = status.toLowerCase();
-        return normalized === "resolved" || normalized === "rejected";
-      }
-      return false;
-    };
-
     const isSosReport = (report: any) => {
       const type = typeof report?.type === "string" ? report.type.toLowerCase() : "";
       return report?.category === 1 || type === "sos" || type === "medical";
     };
 
-    const merged = [...(Array.isArray(apiReports) ? apiReports : []), ...(Array.isArray(realtimeReports) ? realtimeReports : [])];
-    return merged.some((report: any) => isSosReport(report) && !isClosedStatus(report?.status));
-  }, [apiReports, realtimeReports]);
+    return reports.some((report: any) => isSosReport(report) && !isTerminalStatus(report?.status));
+  }, [reports]);
 
   const renderTriageContent = () => {
     switch (activeTriageItem) {

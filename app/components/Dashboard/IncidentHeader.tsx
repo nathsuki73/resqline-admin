@@ -25,13 +25,11 @@ import DispatchUnitModal, {
   DEFAULT_DEPLOYED_UNITS,
 } from "./DispatchUnitModal";
 import useModalDissolve from "../settings/ui/useModalDissolve";
-import { useReports } from "@/app/hooks/useReports";
-import { updateReportStatus } from "@/app/services/reports";
 import {
-  mapSlugToApiStatus,
   statusStep,
   type IncidentStatusSlug,
 } from "@/app/constants/reportStatus";
+import { transitionReportStatus } from "@/app/services/reportTransitionService";
 
 const MODAL_EXIT_MS = 260;
 
@@ -57,8 +55,6 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
-  const { mutate } = useReports();
-
   const syncIncidentStatus = (status: IncidentStatusSlug) => {
     const next = {
       ...incident,
@@ -76,16 +72,16 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
 
     if (action === "reject") {
       try {
-        const cleanId = incident.id.replace("RPT-2026-", "");
-        console.log(`🚫 Rejecting RPT-${cleanId}...`);
+        const result = await transitionReportStatus({
+          reportId: incident.id,
+          nextStatus: "rejected",
+          origin: "dashboard",
+        });
+        syncIncidentStatus(result.status);
 
-        await updateReportStatus(cleanId, mapSlugToApiStatus("rejected"));
-        syncIncidentStatus("rejected");
-
-        // Refresh the global state
-        await mutate();
-
-        setLastActionMessage(`Report #${incident.id} has been rejected.`);
+        setLastActionMessage(
+          `Report #${incident.id} has been rejected. Reporter app: ${result.mobileStatus}.`,
+        );
       } catch (err) {
         console.error("❌ Failed to reject incident:", err);
         setLastActionMessage("Error: Failed to reject report.");
@@ -98,18 +94,15 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
     _note: string,
   ) => {
     try {
-      const cleanId = incident.id.replace("RPT-2026-", "");
-      console.log(`🔄 Updating RPT-${cleanId} to Dispatched...`);
-
-      await updateReportStatus(cleanId, mapSlugToApiStatus("in-progress"));
-      syncIncidentStatus("in-progress");
-
-      // This is the key: once mutate finishes, the new status 'in-progress'
-      // flows back into the 'incident' state via your useEffect listeners.
-      await mutate();
+      const result = await transitionReportStatus({
+        reportId: incident.id,
+        nextStatus: "in-progress",
+        origin: "dashboard",
+      });
+      syncIncidentStatus(result.status);
 
       setLastActionMessage(
-        `Dispatch initiated for report #${incident.id}. ${selectedUnitIds.length} unit(s) dispatched.`,
+        `Dispatch initiated for report #${incident.id}. ${selectedUnitIds.length} unit(s) dispatched. Reporter app: ${result.mobileStatus}.`,
       );
     } catch (error) {
       console.error("❌ Failed to update status during dispatch:", error);
@@ -119,11 +112,15 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
 
   const handleResolveIncident = async () => {
     try {
-      const cleanId = incident.id.replace("RPT-2026-", "");
-      await updateReportStatus(cleanId, mapSlugToApiStatus("resolved"));
-      syncIncidentStatus("resolved");
-      await mutate();
-      setLastActionMessage(`Report #${incident.id} marked as resolved.`);
+      const result = await transitionReportStatus({
+        reportId: incident.id,
+        nextStatus: "resolved",
+        origin: "dashboard",
+      });
+      syncIncidentStatus(result.status);
+      setLastActionMessage(
+        `Report #${incident.id} marked as resolved. Reporter app: ${result.mobileStatus}.`,
+      );
     } catch (error) {
       console.error("❌ Failed to resolve incident:", error);
       setLastActionMessage("Error: Failed to resolve report.");

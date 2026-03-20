@@ -1,6 +1,6 @@
 export type BridgeIncidentStatus =
-  | "under-review"
   | "submitted"
+  | "under-review"
   | "in-progress"
   | "resolved"
   | "rejected";
@@ -17,6 +17,7 @@ export type BridgeIncident = {
   department: BridgeIncidentDepartment;
   severity: "Critical" | "High" | "Medium" | "Low";
   status: BridgeIncidentStatus;
+  mobileStatus?: string;
   time: string;
   reporterDescription: string;
   internalNote?: string;

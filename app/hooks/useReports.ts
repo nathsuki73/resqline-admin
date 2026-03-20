@@ -5,8 +5,10 @@ import {
   loadReportsShared,
   subscribeReportsState,
 } from "./reportsStore";
+import { useRealtimeReports } from "./useRealTimeReports";
 
 export function useReports() {
+  useRealtimeReports();
   const [snapshot, setSnapshot] = useState(getReportsState());
 
   useEffect(() => {
@@ -15,10 +17,7 @@ export function useReports() {
     });
 
     const current = getReportsState();
-    if (!current.initialized && !current.loading) {
-      void loadReportsShared();
-    }
-    if (!current.initialized && current.loading) {
+    if (!current.initialized) {
       void loadReportsShared();
     }
 

@@ -2,6 +2,7 @@ import React from "react";
 import { MapPin, X, Send, Eye } from "lucide-react";
 import type { BridgeIncident } from "../Dashboard/incidentBridge";
 import Map, { Marker } from "react-map-gl/mapbox";
+import { mapMobileStatusToLabel } from "@/app/constants/reportStatus";
 
 const ICON_SIZE = 14;
 
@@ -149,6 +150,12 @@ const OperationalSidebar = ({
             <div className="rounded border border-(--color-border-1) bg-(--color-surface-2) p-2">
               <p className="text-[8px] uppercase text-(--color-text-4)">Reported</p>
               <p className="text-xs font-bold text-(--color-text-2)">{incident.time} Today</p>
+            </div>
+            <div className="rounded border border-(--color-border-1) bg-(--color-surface-2) p-2 col-span-2">
+              <p className="text-[8px] uppercase text-(--color-text-4)">Reporter App Status</p>
+              <p className="text-xs font-bold text-(--color-text-2)">
+                {mapMobileStatusToLabel(incident.status)}
+              </p>
             </div>
           </div>
         </div>

@@ -9,7 +9,13 @@ import {
 	ShieldCheck,
 	X,
 } from "lucide-react";
-import { mapApiStatusToLabel, type IncidentStatusSlug } from "@/app/constants/reportStatus";
+import {
+	canTransitionStatus,
+	mapApiStatusToLabel,
+	mapMobileStatusToLabel,
+	statusStep,
+	type IncidentStatusSlug,
+} from "@/app/constants/reportStatus";
 
 type IncidentDepartment = "bfp" | "ctmo" | "pdrmo" | "pnp";
 
@@ -91,6 +97,10 @@ const AllReportsSidebar = ({
 }: AllReportsSidebarProps) => {
 	const statusTone = reportInFocus ? getStatusTone(reportInFocus.status) : null;
 	const draftLength = focusedDraftNote.trim().length;
+	const statusValue = reportInFocus?.status ?? "submitted";
+	const currentStatusStep = statusStep(statusValue as IncidentStatusSlug);
+	const canDispatch = currentStatusStep >= 2 && currentStatusStep < 4;
+	const canResolve = currentStatusStep === 3;
 
 	return (
 		<aside
@@ -132,6 +142,9 @@ const AllReportsSidebar = ({
 									<MapPin size={12} />
 									{departmentLabel[reportInFocus.department]}
 								</span>
+								<span className="inline-flex items-center gap-1 rounded-full border border-(--color-border-2) bg-(--color-surface-2) px-2 py-0.5 text-[10px]">
+									Reporter: {mapMobileStatusToLabel(reportInFocus.status)}
+								</span>
 							</div>
 						</div>
 					</header>
@@ -145,13 +158,19 @@ const AllReportsSidebar = ({
 								<button type="button" onClick={onOpenFullView} className="ui-btn ui-btn-primary justify-center px-3 py-2 text-[12px]">
 									 Full View
 								</button>
-								<button type="button" onClick={onOpenDispatch} className="ui-btn ui-btn-secondary justify-center px-3 py-2 text-[12px]">
+								<button
+									type="button"
+									onClick={onOpenDispatch}
+									disabled={!canDispatch || isUpdatingStatus}
+									className="ui-btn ui-btn-secondary justify-center px-3 py-2 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
+								>
 									 Dispatch
 								</button>
 								<button
 									type="button"
 									onClick={onResolve}
-									className="ui-btn justify-center border border-(--color-green-border) bg-(--color-green-glow) px-3 py-2 text-[12px] text-(--color-text-green) transition-colors hover:bg-[rgba(67,160,71,0.25)]"
+									disabled={!canResolve || isUpdatingStatus}
+									className="ui-btn justify-center border border-(--color-green-border) bg-(--color-green-glow) px-3 py-2 text-[12px] text-(--color-text-green) transition-colors hover:bg-[rgba(67,160,71,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
 								>
 									 Resolve
 								</button>
@@ -177,7 +196,14 @@ const AllReportsSidebar = ({
 									className="h-10 w-full appearance-none rounded-lg border border-(--color-border-2) bg-(--color-surface-1) px-3 pr-7 text-sm text-(--color-text-1) focus:border-(--color-orange-border) focus:outline-none disabled:opacity-60"
 								>
 									{statusOptions.map((option) => (
-										<option key={option.value} value={option.value}>
+										<option
+											key={option.value}
+											value={option.value}
+											disabled={
+												option.value !== reportInFocus.status &&
+												!canTransitionStatus(reportInFocus.status, option.value)
+											}
+										>
 											{option.label}
 										</option>
 									))}

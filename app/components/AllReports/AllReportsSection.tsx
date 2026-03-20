@@ -24,15 +24,18 @@ import {
 	type BridgeNoteUpdate,
 } from "../Dashboard/incidentBridge";
 import { useReports } from "@/app/hooks/useReports";
-import { fetchReportById, updateReportStatus } from "@/app/services/reports";
+import { fetchReportById } from "@/app/services/reports";
 import {
 	mapApiStatusToLabel,
 	mapApiStatusToSlug,
 	mapSlugToApiStatus,
+	mapMobileStatusToLabel,
+	mapResponderStatusToMobileStatus,
 	statusStep,
 	type IncidentStatusSlug,
 } from "@/app/constants/reportStatus";
 import { mapCategoryCodeToType } from "@/app/constants/reportCategories";
+import { transitionReportStatus } from "@/app/services/reportTransitionService";
 import AllReportsSidebar from "./AllReportsSidebar";
 import AllReportsTable from "./AllReportsTable";
 
@@ -51,6 +54,7 @@ type IncidentReport = {
 	department: IncidentDepartment;
 	severity: IncidentSeverity;
 	status: IncidentStatus;
+	mobileStatus: string;
 	time: string;
 	dateISO: string;
 	reporterDescription: string;
@@ -221,6 +225,7 @@ const mapApiReportToIncidentReport = (report: any): IncidentReport => {
 		department: mapCategoryToDepartment(report.category),
 		severity,
 		status,
+		mobileStatus: mapResponderStatusToMobileStatus(status),
 		time: new Date(rawDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
 		dateISO: rawDate,
 		reporterDescription: report.description || "",
@@ -379,6 +384,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 			"Department",
 			"Status Code",
 			"Status Label",
+			"Reporter Mobile Status",
 			"Reporter Name",
 			"Reporter Phone",
 			"Created At (ISO)",
@@ -415,6 +421,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 				departmentLabel[report.department],
 				toText(raw?.status ?? mapIncidentStatusToApiStatus(report.status)),
 				mapApiStatusToLabel(raw?.status ?? report.status),
+				mapMobileStatusToLabel(raw?.status ?? report.status),
 				report.reporter,
 				report.reporterContact,
 				toText(rawDate),
@@ -468,11 +475,30 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 
 		setIsUpdatingStatus(true);
 		setReports((prev) =>
-			prev.map((report) => (report.id === activeReportId ? { ...report, status: nextStatus } : report))
+			prev.map((report) =>
+				report.id === activeReportId
+					? {
+						...report,
+						status: nextStatus,
+						mobileStatus: mapResponderStatusToMobileStatus(nextStatus),
+					}
+					: report,
+			)
 		);
 
 		try {
-			await updateReportStatus(activeReportId, mapIncidentStatusToApiStatus(nextStatus));
+			const result = await transitionReportStatus({
+				reportId: activeReportId,
+				nextStatus,
+				origin: "all-reports",
+			});
+			setReports((prev) =>
+				prev.map((report) =>
+					report.id === activeReportId
+						? { ...report, status: result.status, mobileStatus: result.mobileStatus }
+						: report,
+				),
+			);
 			await mutate();
 		} catch (error) {
 			console.error("Failed to update report status:", error);
@@ -513,6 +539,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 			department: departmentLabel[report.department] as BridgeIncident["department"],
 			severity: severityLabel[report.severity] as BridgeIncident["severity"],
 			status: report.status,
+			mobileStatus: report.mobileStatus,
 			time: report.time,
 			reporterDescription: report.reporterDescription,
 			internalNote: report.internalNote,
@@ -527,9 +554,17 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		if (action === "reject") {
 			setIsUpdatingStatus(true);
 			try {
-				await updateReportStatus(
-					reportInFocus.id,
-					mapIncidentStatusToApiStatus("rejected"),
+				const result = await transitionReportStatus({
+					reportId: reportInFocus.id,
+					nextStatus: "rejected",
+					origin: "all-reports",
+				});
+				setReports((prev) =>
+					prev.map((report) =>
+						report.id === reportInFocus.id
+							? { ...report, status: result.status, mobileStatus: result.mobileStatus }
+							: report,
+					),
 				);
 				await mutate();
 			} catch (error) {
@@ -562,6 +597,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 					? {
 						...report,
 						status: "in-progress",
+						mobileStatus: mapResponderStatusToMobileStatus("in-progress"),
 						internalNote: note.trim().length > 0 ? note.trim() : report.internalNote,
 					}
 					: report
@@ -569,7 +605,18 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		);
 
 		try {
-			await updateReportStatus(reportInFocus.id, mapIncidentStatusToApiStatus("in-progress"));
+			const result = await transitionReportStatus({
+				reportId: reportInFocus.id,
+				nextStatus: "in-progress",
+				origin: "all-reports",
+			});
+			setReports((prev) =>
+				prev.map((report) =>
+					report.id === reportInFocus.id
+						? { ...report, status: result.status, mobileStatus: result.mobileStatus }
+						: report,
+				),
+			);
 			await mutate();
 		} catch (error) {
 			console.error("Failed to dispatch report:", error);
@@ -601,14 +648,28 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		setIsUpdatingStatus(true);
 		setReports((prev) =>
 			prev.map((report) =>
-				report.id === reportInFocus.id ? { ...report, status: "resolved" } : report,
+				report.id === reportInFocus.id
+					? {
+						...report,
+						status: "resolved",
+						mobileStatus: mapResponderStatusToMobileStatus("resolved"),
+					}
+					: report,
 			),
 		);
 
 		try {
-			await updateReportStatus(
-				reportInFocus.id,
-				mapIncidentStatusToApiStatus("resolved"),
+			const result = await transitionReportStatus({
+				reportId: reportInFocus.id,
+				nextStatus: "resolved",
+				origin: "all-reports",
+			});
+			setReports((prev) =>
+				prev.map((report) =>
+					report.id === reportInFocus.id
+						? { ...report, status: result.status, mobileStatus: result.mobileStatus }
+						: report,
+				),
 			);
 			await mutate();
 		} catch (error) {

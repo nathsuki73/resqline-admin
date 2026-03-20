@@ -3,11 +3,14 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/mapbox";
 import { Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
-import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 import {
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
 } from "@/app/constants/reportCategories";
+import {
+  mapApiStatusToSlug,
+  mapResponderStatusToMobileStatus,
+} from "@/app/constants/reportStatus";
 import type { BridgeIncident } from "./incidentBridge";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -25,15 +28,6 @@ type IncidentSummary = {
   sos: number;
   fire: number;
   flood: number;
-};
-
-const mapStatusToSlug = (status: unknown): BridgeIncident["status"] => {
-  if (status === 1 || status === "submitted") return "submitted";
-  if (status === 2 || status === "in-progress" || status === "under-review") {
-    return "in-progress";
-  }
-  if (status === 3 || status === "resolved") return "resolved";
-  return "under-review";
 };
 
 const mapCategoryToSeverity = (category: unknown): BridgeIncident["severity"] => {
@@ -71,8 +65,7 @@ const IncidentMap: React.FC<{
   const containerRef = useRef<HTMLDivElement | null>(null);
   const hasInitialCentered = useRef(false);
 
-  const { reports: apiReports, loading: apiLoading, mutate: reloadReports } = useReports();
-  const { reports: realtimeReports } = useRealtimeReports();
+  const { reports, loading: apiLoading, mutate: reloadReports } = useReports();
 
   const [viewState, setViewState] = useState({
     longitude: 121.0287,
@@ -80,13 +73,9 @@ const IncidentMap: React.FC<{
     zoom: 13, // Slightly zoomed out to see markers better
   });
 
-  // EXACT SYNC WITH TRIAGE FEED: Merge the data sources
+  // Single source of truth: all reports already merged/reconciled in reportsStore.
   const incidents = useMemo((): IncidentMarker[] => {
-    const mergedReports = [...realtimeReports, ...apiReports];
-
-    console.log(`🗺️ Map Sync: Merged ${mergedReports.length} reports.`);
-
-    return mergedReports
+    return reports
       .map((r: any) => {
         // Use the exact same path TriageFeed uses: r.location?.latitude
         const lat = parseFloat(r.location?.latitude ?? r.latitude ?? r.lat);
@@ -120,7 +109,8 @@ const IncidentMap: React.FC<{
               "No contact provided",
             department: mapCategoryCodeToDepartment(r.category),
             severity: mapCategoryToSeverity(r.category),
-            status: mapStatusToSlug(r.status),
+            status: mapApiStatusToSlug(r.status),
+            mobileStatus: mapResponderStatusToMobileStatus(r.status),
             time: rawDate
               ? new Date(rawDate).toLocaleTimeString([], {
                   hour: "2-digit",
@@ -138,12 +128,12 @@ const IncidentMap: React.FC<{
       .filter((inc) => {
         const isValid =
           !isNaN(inc.lat) && inc.lat !== 0 && inc.lat >= -90 && inc.lat <= 90;
-        if (!isValid && mergedReports.length > 0) {
+        if (!isValid && reports.length > 0) {
           console.warn("📍 Marker filtered out due to invalid coords:", inc);
         }
         return isValid;
       });
-  }, [apiReports, realtimeReports]);
+  }, [reports]);
 
   const getCategoryMarkerStyle = (categoryType?: string) => {
     const normalized = (categoryType ?? "").toUpperCase();

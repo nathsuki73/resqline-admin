@@ -3,12 +3,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Send, Truck, X } from "lucide-react";
 import useModalDissolve from "../settings/ui/useModalDissolve";
 import emailjs from "@emailjs/browser";
-import { updateReportStatus } from "@/app/services/reports";
 import { createPortal } from "react-dom";
 import { fetchReportById } from "@/app/services/reports";
 import {
   mapApiStatusToLabel,
-  mapSlugToApiStatus,
 } from "@/app/constants/reportStatus";
 
 const MODAL_EXIT_MS = 260;
@@ -263,14 +261,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
 
       console.log("📧 Dispatch Email Sent");
 
-      // 2. 🟢 Update Backend Status to 'In Progress' (Enum index 2)
-      // Strip "RPT-2026-" if your backend expects the raw UUID
-      const cleanId = incidentId.replace("RPT-2026-", "");
-      await updateReportStatus(cleanId, mapSlugToApiStatus("in-progress"));
-
-      console.log(`✅ Status updated to In Progress for ${cleanId}`);
-
-      // 3. Notify Parent and Close
+      // 2. Notify parent (shared transition service will own status updates).
       onDispatch?.(selectedUnits, dispatchNote.trim());
       onClose();
     } catch (error) {
