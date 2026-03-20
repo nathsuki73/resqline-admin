@@ -12,11 +12,14 @@ import ResponderSection from "./components/Responders/ResponderSection";
 import SettingsNav from "./components/SettingsNav";
 import SideNav, { SideNavPanel, SideNavTriageItem } from "./components/SideNav";
 import TriageFeed from "./components/Dashboard/TriageFeed";
+import OperationalMapView from "./components/MapView/OperationalMapView";
 
 export default function ResponderDashboard() {
   const [activePanel, setActivePanel] = useState<SideNavPanel>("triage");
-  const [activeTriageItem, setActiveTriageItem] = useState<SideNavTriageItem>("dashboard");
-  const [activeSettingsItem, setActiveSettingsItem] = useState<string>("profile-account");
+  const [activeTriageItem, setActiveTriageItem] =
+    useState<SideNavTriageItem>("dashboard");
+  const [activeSettingsItem, setActiveSettingsItem] =
+    useState<string>("profile-account");
 
   // TODO: Replace with API call to detect active SOS incidents from backend
   const hasSosAlerts = true; // Currently hardcoded; will be dynamic from API
@@ -27,18 +30,20 @@ export default function ResponderDashboard() {
         return <ResponderDashboardShell />;
       case "map":
         return (
-          <main className="flex h-screen flex-1 flex-col bg-[#0a0a0a] p-4">
-            <div className="mb-3">
-              <h1 className="text-base font-semibold text-[#f0ede8]">Operational Map</h1>
-              <p className="mt-1 text-xs text-[#7a7268]">Live incidents and field unit positions.</p>
-            </div>
-            <div className="min-h-0 flex-1">
-              <IncidentMap />
+          <main className="flex flex-1 flex-col bg-[#0a0a0a]">
+            <div className=" flex-1">
+              <OperationalMapView
+                onClose={() => setActiveTriageItem("dashboard")}
+              />
             </div>
           </main>
         );
       case "reports":
-        return <AllReportsSection onOpenDashboard={() => setActiveTriageItem("dashboard")} />;
+        return (
+          <AllReportsSection
+            onOpenDashboard={() => setActiveTriageItem("dashboard")}
+          />
+        );
       case "responders":
         return <ResponderSection />;
       default:

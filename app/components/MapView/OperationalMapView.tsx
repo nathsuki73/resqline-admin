@@ -7,7 +7,7 @@ import { Search, Layers, LayoutGrid } from "lucide-react";
 
 const OperationalMapView = ({ onClose }: { onClose: () => void }) => {
   return (
-    <div className="fixed inset-0 z-[100] bg-[#0a0a0a] flex overflow-hidden">
+    <div className="relative h-full w-full bg-[#0a0a0a] flex overflow-hidden">
       {/* 1. Header Overlay */}
       <OperationalMapHeader />
 
