@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Send, Truck, X } from "lucide-react";
 import useModalDissolve from "../settings/ui/useModalDissolve";
+import emailjs from "@emailjs/browser";
 
 const MODAL_EXIT_MS = 260;
 
@@ -113,7 +114,10 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [dispatchNote, setDispatchNote] = useState("");
   const [isDispatching, setIsDispatching] = useState(false);
-  const selectedUnitIds = useMemo(() => new Set(selectedUnits), [selectedUnits]);
+  const selectedUnitIds = useMemo(
+    () => new Set(selectedUnits),
+    [selectedUnits],
+  );
 
   const closestEta = useMemo(() => {
     // Derived summary metric used by UI header for quick triage scanning.
@@ -137,17 +141,43 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
 
   const toggleUnitSelection = (unitId: string) => {
     setSelectedUnits((prev) =>
-      prev.includes(unitId) ? prev.filter((id) => id !== unitId) : [...prev, unitId]
+      prev.includes(unitId)
+        ? prev.filter((id) => id !== unitId)
+        : [...prev, unitId],
     );
   };
 
-  const handleDispatch = () => {
+  const handleDispatch = async () => {
     if (selectedUnits.length === 0) return;
     setIsDispatching(true);
-    // TODO(API): Wire to POST /incidents/:incidentId/dispatch with selected unit IDs + note
-    onDispatch?.(selectedUnits, dispatchNote.trim());
-    setIsDispatching(false);
-    onClose();
+
+    try {
+      const templateParams = {
+        incidentId: incidentId,
+        incidentType: incidentType,
+        location: location,
+        appUrl: process.env.NEXT_PUBLIC_URL,
+        units: selectedUnits.join(", "),
+        note: dispatchNote || "No additional instructions.",
+        email: "nathskiiii@gmail.com",
+      };
+
+      // 💡 Use process.env here
+      await emailjs.send(
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
+        templateParams,
+        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
+      );
+
+      console.log("📧 Dispatch Email Sent");
+      onDispatch?.(selectedUnits, dispatchNote.trim());
+      onClose();
+    } catch (error) {
+      console.error("❌ Email failed:", error);
+    } finally {
+      setIsDispatching(false);
+    }
   };
 
   if (!shouldRender) return null;
@@ -171,7 +201,9 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
       >
         <header className="flex items-start justify-between border-b border-(--color-border-1) px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-(--color-text-1)">Dispatch Unit</h2>
+            <h2 className="text-lg font-semibold text-(--color-text-1)">
+              Dispatch Unit
+            </h2>
             <p className="mt-1 text-xs text-(--color-text-3)">
               Assign response units to {incidentId}
             </p>
@@ -190,23 +222,34 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
           <div className="rounded-xl border border-(--color-border-2) bg-(--color-surface-2) p-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-(--color-text-1)">{incidentType}</p>
+                <p className="truncate text-sm font-semibold text-(--color-text-1)">
+                  {incidentType}
+                </p>
                 <p className="mt-1 text-xs text-(--color-text-3)">{location}</p>
-                <p className="mt-0.5 text-[11px] text-(--color-text-3)">{coordinates}</p>
+                <p className="mt-0.5 text-[11px] text-(--color-text-3)">
+                  {coordinates}
+                </p>
               </div>
-              <span className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${getSeverityClass(severity)}`}>
+              <span
+                className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${getSeverityClass(severity)}`}
+              >
                 {severity}
               </span>
             </div>
             <p className="mt-2 text-[11px] text-(--color-text-3)">
-              {availableUnits.length} available • {deployedUnits.length} deployed • closest ETA {closestEta}
+              {availableUnits.length} available • {deployedUnits.length}{" "}
+              deployed • closest ETA {closestEta}
             </p>
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-(--color-text-3)">Available Units</h3>
-              <p className="text-[11px] text-(--color-text-3)">{selectedUnits.length} selected</p>
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-(--color-text-3)">
+                Available Units
+              </h3>
+              <p className="text-[11px] text-(--color-text-3)">
+                {selectedUnits.length} selected
+              </p>
             </div>
             <div className="max-h-64 space-y-2 overflow-auto custom-scrollbar">
               {availableUnits.map((unit) => {
@@ -224,20 +267,33 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
                     aria-pressed={selected}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--color-orange) ${
-                        selected ? "bg-[rgba(245,124,0,0.16)]" : "bg-(--color-surface-1)"
-                      }`}>
-                        {selected ? <CheckCircle2 size={16} /> : <Truck size={16} />}
+                      <div
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--color-orange) ${
+                          selected
+                            ? "bg-[rgba(245,124,0,0.16)]"
+                            : "bg-(--color-surface-1)"
+                        }`}
+                      >
+                        {selected ? (
+                          <CheckCircle2 size={16} />
+                        ) : (
+                          <Truck size={16} />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="truncate text-sm font-semibold text-(--color-text-1)">{unit.name}</p>
-                          <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${getStatusPillClass(unit.status)}`}>
+                          <p className="truncate text-sm font-semibold text-(--color-text-1)">
+                            {unit.name}
+                          </p>
+                          <span
+                            className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${getStatusPillClass(unit.status)}`}
+                          >
                             {unit.status}
                           </span>
                         </div>
                         <p className="mt-1 text-[11px] text-(--color-text-3)">
-                          {unit.personnel} personnel • {unit.equipment} • {unit.distance} • {unit.eta} ETA
+                          {unit.personnel} personnel • {unit.equipment} •{" "}
+                          {unit.distance} • {unit.eta} ETA
                         </p>
                       </div>
                     </div>
@@ -249,13 +305,22 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
 
           {deployedUnits.length > 0 ? (
             <div>
-              <h3 className="mb-2 text-[11px] font-bold uppercase tracking-widest text-(--color-text-3)">Already Deployed</h3>
+              <h3 className="mb-2 text-[11px] font-bold uppercase tracking-widest text-(--color-text-3)">
+                Already Deployed
+              </h3>
               <div className="space-y-2">
                 {deployedUnits.map((unit) => (
-                  <div key={unit.id} className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-3 opacity-70">
+                  <div
+                    key={unit.id}
+                    className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-3 opacity-70"
+                  >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-(--color-text-2)">{unit.name}</p>
-                      <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${getStatusPillClass(unit.status)}`}>
+                      <p className="text-sm font-medium text-(--color-text-2)">
+                        {unit.name}
+                      </p>
+                      <span
+                        className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ${getStatusPillClass(unit.status)}`}
+                      >
                         {unit.status}
                       </span>
                     </div>
@@ -267,8 +332,12 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
 
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-(--color-text-3)">Dispatch Note</label>
-              <span className="text-[10px] text-(--color-text-4)">Optional</span>
+              <label className="text-[11px] font-bold uppercase tracking-widest text-(--color-text-3)">
+                Dispatch Note
+              </label>
+              <span className="text-[10px] text-(--color-text-4)">
+                Optional
+              </span>
             </div>
             <textarea
               value={dispatchNote}
@@ -282,10 +351,16 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
 
         <footer className="flex items-center justify-between gap-3 border-t border-(--color-border-1) px-5 py-4">
           <p className="text-xs text-(--color-text-3)">
-            {selectedUnits.length === 0 ? "Select at least one unit" : `${selectedUnits.length} unit(s) selected`}
+            {selectedUnits.length === 0
+              ? "Select at least one unit"
+              : `${selectedUnits.length} unit(s) selected`}
           </p>
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="ui-btn ui-btn-secondary">
+            <button
+              type="button"
+              onClick={onClose}
+              className="ui-btn ui-btn-secondary"
+            >
               Cancel
             </button>
             <button

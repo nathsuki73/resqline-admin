@@ -1,24 +1,30 @@
-export type BridgeIncidentStatus = "under-review" | "submitted" | "in-progress" | "resolved";
+export type BridgeIncidentStatus =
+  | "under-review"
+  | "submitted"
+  | "in-progress"
+  | "resolved";
 export type BridgeIncidentDepartment = "BFP" | "CTMO" | "PDRRMO" | "PNP";
 
 export type BridgeIncident = {
-	id: string;
-	incidentType: string;
-	location: string;
-	reporter: string;
-	reporterContact?: string;
-	department: BridgeIncidentDepartment;
-	severity: "Critical" | "High" | "Medium" | "Low";
-	status: BridgeIncidentStatus;
-	time: string;
-	reporterDescription: string;
-	internalNote?: string;
+  id: string;
+  incidentType: string;
+  location: string;
+  reporter: string;
+  reporterContact?: string;
+  department: BridgeIncidentDepartment;
+  severity: "Critical" | "High" | "Medium" | "Low";
+  status: BridgeIncidentStatus;
+  time: string;
+  reporterDescription: string;
+  internalNote?: string;
+
+  images?: string[];
 };
 
 export type BridgeActionType = "dispatch" | "reject";
 export type BridgeNoteUpdate = {
-	id: string;
-	note: string;
+  id: string;
+  note: string;
 };
 
 const INCIDENT_STORAGE_KEY = "resqline.activeIncident";
@@ -33,67 +39,85 @@ export const INCIDENT_NOTE_UPDATED_EVENT = "resqline:incident-note-updated";
 // Event names are public contracts across Dashboard components. Keep stable to avoid silent desync.
 
 const getIncidentNotesById = (): Record<string, string> => {
-	if (typeof window === "undefined") return {};
-	const raw = window.localStorage.getItem(NOTES_STORAGE_KEY);
-	if (!raw) return {};
-	try {
-		return JSON.parse(raw) as Record<string, string>;
-	} catch {
-		return {};
-	}
+  if (typeof window === "undefined") return {};
+  const raw = window.localStorage.getItem(NOTES_STORAGE_KEY);
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, string>;
+  } catch {
+    return {};
+  }
 };
 
 const setIncidentNotesById = (notesById: Record<string, string>) => {
-	if (typeof window === "undefined") return;
-	window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notesById));
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notesById));
 };
 
 export const getIncidentNoteForId = (id: string): string | null => {
-	if (typeof window === "undefined") return null;
-	const notesById = getIncidentNotesById();
-	return notesById[id] ?? null;
+  if (typeof window === "undefined") return null;
+  const notesById = getIncidentNotesById();
+  return notesById[id] ?? null;
 };
 
 export const setIncidentNoteForId = (id: string, note: string) => {
-	if (typeof window === "undefined") return;
-	const notesById = getIncidentNotesById();
-	const nextNotesById = { ...notesById, [id]: note };
-	setIncidentNotesById(nextNotesById);
-	window.dispatchEvent(new CustomEvent<BridgeNoteUpdate>(INCIDENT_NOTE_UPDATED_EVENT, { detail: { id, note } }));
+  if (typeof window === "undefined") return;
+  const notesById = getIncidentNotesById();
+  const nextNotesById = { ...notesById, [id]: note };
+  setIncidentNotesById(nextNotesById);
+  window.dispatchEvent(
+    new CustomEvent<BridgeNoteUpdate>(INCIDENT_NOTE_UPDATED_EVENT, {
+      detail: { id, note },
+    }),
+  );
 };
 // TODO(API): Mirror this update through PATCH /incidents/:id/internal-note and emit real-time updates via socket.
 
 export const getActiveIncident = (): BridgeIncident | null => {
-	if (typeof window === "undefined") return null;
-	const raw = window.localStorage.getItem(INCIDENT_STORAGE_KEY);
-	if (!raw) return null;
-	try {
-		return JSON.parse(raw) as BridgeIncident;
-	} catch {
-		return null;
-	}
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(INCIDENT_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as BridgeIncident;
+  } catch {
+    return null;
+  }
 };
 
 export const setActiveIncident = (incident: BridgeIncident) => {
-	if (typeof window === "undefined") return;
-	const syncedNote = getIncidentNoteForId(incident.id);
-	const nextIncident = syncedNote !== null ? { ...incident, internalNote: syncedNote } : incident;
-	window.localStorage.setItem(INCIDENT_STORAGE_KEY, JSON.stringify(nextIncident));
-	window.dispatchEvent(new CustomEvent<BridgeIncident>(INCIDENT_SELECTED_EVENT, { detail: nextIncident }));
+  if (typeof window === "undefined") return;
+  const syncedNote = getIncidentNoteForId(incident.id);
+  const nextIncident =
+    syncedNote !== null ? { ...incident, internalNote: syncedNote } : incident;
+  window.localStorage.setItem(
+    INCIDENT_STORAGE_KEY,
+    JSON.stringify(nextIncident),
+  );
+  window.dispatchEvent(
+    new CustomEvent<BridgeIncident>(INCIDENT_SELECTED_EVENT, {
+      detail: nextIncident,
+    }),
+  );
 };
 // TODO(API): Persist active incident context in route/query state or global store instead of localStorage.
 
 export const queueIncidentAction = (action: BridgeActionType) => {
-	if (typeof window === "undefined") return;
-	window.localStorage.setItem(ACTION_STORAGE_KEY, action);
-	window.dispatchEvent(new CustomEvent<BridgeActionType>(INCIDENT_ACTION_EVENT, { detail: action }));
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(ACTION_STORAGE_KEY, action);
+  window.dispatchEvent(
+    new CustomEvent<BridgeActionType>(INCIDENT_ACTION_EVENT, {
+      detail: action,
+    }),
+  );
 };
 // TODO(API): Replace queued action localStorage with explicit command endpoint + optimistic UI flow.
 
 export const consumeQueuedIncidentAction = (): BridgeActionType | null => {
-	if (typeof window === "undefined") return null;
-	const queued = window.localStorage.getItem(ACTION_STORAGE_KEY) as BridgeActionType | null;
-	if (!queued) return null;
-	window.localStorage.removeItem(ACTION_STORAGE_KEY);
-	return queued;
+  if (typeof window === "undefined") return null;
+  const queued = window.localStorage.getItem(
+    ACTION_STORAGE_KEY,
+  ) as BridgeActionType | null;
+  if (!queued) return null;
+  window.localStorage.removeItem(ACTION_STORAGE_KEY);
+  return queued;
 };
