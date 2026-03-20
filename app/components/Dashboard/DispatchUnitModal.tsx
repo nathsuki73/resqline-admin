@@ -152,31 +152,29 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
     setIsDispatching(true);
 
     try {
-      // 1. Prepare Template Parameters
       const templateParams = {
         incidentId: incidentId,
         incidentType: incidentType,
         location: location,
+        appUrl: process.env.NEXT_PUBLIC_URL,
         units: selectedUnits.join(", "),
         note: dispatchNote || "No additional instructions.",
-        to_email: "responder@example.com", // 💡 Change to your actual recipient
+        email: "nathskiiii@gmail.com",
       };
 
-      // 2. Send via EmailJS
+      // 💡 Use process.env here
       await emailjs.send(
-        "YOUR_SERVICE_ID",
-        "YOUR_TEMPLATE_ID",
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
         templateParams,
-        "YOUR_PUBLIC_KEY",
+        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
       );
 
-      console.log("📧 Dispatch Email Sent Successfully");
-
+      console.log("📧 Dispatch Email Sent");
       onDispatch?.(selectedUnits, dispatchNote.trim());
-
       onClose();
     } catch (error) {
-      console.error("Email failed to send:", error);
+      console.error("❌ Email failed:", error);
     } finally {
       setIsDispatching(false);
     }
