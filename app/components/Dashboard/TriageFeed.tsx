@@ -123,14 +123,6 @@ const TriageFeed: React.FC = () => {
         );
   }, [liveReportItems, selectedDepartmentFilter]);
 
-  // Auto-select the first report if nothing is selected
-  useEffect(() => {
-    if (filteredReportItems.length > 0 && !activeCardId) {
-      setActiveCardId(filteredReportItems[0].id);
-      setActiveIncident(filteredReportItems[0].incident);
-    }
-  }, [filteredReportItems, activeCardId]);
-
   const handleSelectReport = async (item: ReportFeedItem) => {
     setActiveCardId(item.id);
 
