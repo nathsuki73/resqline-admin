@@ -5,7 +5,7 @@ import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 import { useReports } from "@/app/hooks/useReports";
 import { StatBlock } from "./TriageFeedComponents/StatBlock";
 import { FeedItem } from "./TriageFeedComponents/FeedItem";
-import { fetchReportById } from "@/app/services/reports";
+import { fetchReportById, updateReportStatus } from "@/app/services/reports";
 
 // --- Types ---
 type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
@@ -138,22 +138,34 @@ const TriageFeed: React.FC = () => {
     setActiveIncident(item.incident);
 
     try {
+      // 🚀 NEW LOGIC: If status is 'Submitted' (0), move to 'Under Review' (1)
+      // We check item.incident.status which is mapped from r.status
+      if (item.status === "Submitted") {
+        console.log(`🔄 Updating RPT-${item.id} to Under Review...`);
+        await updateReportStatus(item.id, 1);
+
+        // Update local item status so the UI reflects the change immediately
+        item.status = "Under Review";
+        item.incident.status = "under-review";
+      }
+
       // 2. Fetch the "Heavy" data (Images, etc)
       console.log(`📡 Fetching full details for: ${item.id}`);
       const fullData = await fetchReportById(item.id);
 
-      // 3. Merge the new data with the existing incident object
+      // 3. Merge full data
       const fullIncident: BridgeIncident = {
         ...item.incident,
-        images: fullData.images || [], // Now TypeScript is happy!
+        images: fullData.images || [],
         reporterDescription:
           fullData.description || item.incident.reporterDescription,
+        status: "under-review", // Ensure the bridge reflects the new state
       };
 
-      // 4. Update the bridge - this triggers the Detail Panel to show images
+      // 4. Update the bridge
       setActiveIncident(fullIncident);
     } catch (error) {
-      console.error("Failed to hydrate detail panel:", error);
+      console.error("Failed to hydrate or update report:", error);
     }
   };
   return (
