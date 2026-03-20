@@ -230,7 +230,7 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
             type="button"
             onClick={handleResolveIncident}
             disabled={currentStatusStep !== 3}
-            className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) disabled:cursor-not-allowed disabled:opacity-50"
+            className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) transition-colors hover:bg-[rgba(67,160,71,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CheckCircle2 size={14} />
             Resolved
