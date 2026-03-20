@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Flame, Truck, Droplets, ShieldAlert, ChevronUp } from "lucide-react";
 import { setActiveIncident, type BridgeIncident } from "./incidentBridge";
+import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 
 type FeedType = "FIRE" | "CRASH" | "FLOOD" | "CRIME";
 
@@ -44,8 +45,10 @@ const REPORT_FEED_ITEMS: ReportFeedItem[] = [
       severity: "Critical",
       status: "under-review",
       time: "2:41 PM",
-      reporterDescription: "May sunog sa ikalawang palapag. Makapal ang usok at may mga tao pang nasa loob.",
-      internalNote: "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
+      reporterDescription:
+        "May sunog sa ikalawang palapag. Makapal ang usok at may mga tao pang nasa loob.",
+      internalNote:
+        "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
     },
   },
   {
@@ -66,8 +69,10 @@ const REPORT_FEED_ITEMS: ReportFeedItem[] = [
       severity: "Critical",
       status: "submitted",
       time: "2:39 PM",
-      reporterDescription: "Tatlong sasakyan ang nagbanggaan. Isang lane lang ang passable ngayon.",
-      internalNote: "CTMO dispatch escalation requested, ambulance coordination ongoing.",
+      reporterDescription:
+        "Tatlong sasakyan ang nagbanggaan. Isang lane lang ang passable ngayon.",
+      internalNote:
+        "CTMO dispatch escalation requested, ambulance coordination ongoing.",
     },
   },
   {
@@ -88,8 +93,10 @@ const REPORT_FEED_ITEMS: ReportFeedItem[] = [
       severity: "High",
       status: "in-progress",
       time: "2:28 PM",
-      reporterDescription: "Nagsimula ang apoy sa damuhan, malapit sa poste ng kuryente.",
-      internalNote: "Containment perimeter established. Monitoring wind direction.",
+      reporterDescription:
+        "Nagsimula ang apoy sa damuhan, malapit sa poste ng kuryente.",
+      internalNote:
+        "Containment perimeter established. Monitoring wind direction.",
     },
   },
   {
@@ -110,7 +117,8 @@ const REPORT_FEED_ITEMS: ReportFeedItem[] = [
       severity: "Medium",
       status: "under-review",
       time: "2:15 PM",
-      reporterDescription: "Lumalim ang baha hanggang tuhod at mabagal na ang daloy ng sasakyan.",
+      reporterDescription:
+        "Lumalim ang baha hanggang tuhod at mabagal na ang daloy ng sasakyan.",
       internalNote: "PDRRMO assessment requested for drainage obstruction.",
     },
   },
@@ -134,8 +142,10 @@ const SOS_FEED_ITEMS: SosFeedItem[] = [
       severity: "Critical",
       status: "submitted",
       time: "0:52",
-      reporterDescription: "SOS received with partial voice note: may makapal na usok at may na-trap sa loob. Caller sent location first before full report details.",
-      internalNote: "Location-first SOS. Verify scene, call reporter immediately, and capture photos/video evidence on arrival.",
+      reporterDescription:
+        "SOS received with partial voice note: may makapal na usok at may na-trap sa loob. Caller sent location first before full report details.",
+      internalNote:
+        "Location-first SOS. Verify scene, call reporter immediately, and capture photos/video evidence on arrival.",
     },
   },
   {
@@ -153,21 +163,23 @@ const SOS_FEED_ITEMS: SosFeedItem[] = [
       severity: "Critical",
       status: "submitted",
       time: "1:24",
-      reporterDescription: "SOS triggered. Caller texted: nahihirapan huminga ang kasama, exact medical details not yet provided.",
-      internalNote: "Dispatch nearest available unit for welfare check and EMS triage. Gather scene photos and caller condition details.",
+      reporterDescription:
+        "SOS triggered. Caller texted: nahihirapan huminga ang kasama, exact medical details not yet provided.",
+      internalNote:
+        "Dispatch nearest available unit for welfare check and EMS triage. Gather scene photos and caller condition details.",
     },
   },
 ];
 
 // --- Sub-Components ---
 
-const SOSCard: React.FC<{ name: string; location: string; time: string; active?: boolean; onSelect: () => void }> = ({
-  name,
-  location,
-  time,
-  active,
-  onSelect,
-}) => (
+const SOSCard: React.FC<{
+  name: string;
+  location: string;
+  time: string;
+  active?: boolean;
+  onSelect: () => void;
+}> = ({ name, location, time, active, onSelect }) => (
   <button
     type="button"
     onClick={onSelect}
@@ -185,11 +197,17 @@ const SOSCard: React.FC<{ name: string; location: string; time: string; active?:
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="truncate text-sm font-semibold text-(--color-text-1)">{name}</h4>
-          <span className="shrink-0 text-[10px] text-(--color-text-3)">{time}</span>
+          <h4 className="truncate text-sm font-semibold text-(--color-text-1)">
+            {name}
+          </h4>
+          <span className="shrink-0 text-[10px] text-(--color-text-3)">
+            {time}
+          </span>
         </div>
         <p className="truncate text-xs text-(--color-text-red)">{location}</p>
-        <p className="mt-1 text-[10px] text-(--color-text-3)">Location ping received. Waiting for user details.</p>
+        <p className="mt-1 text-[10px] text-(--color-text-3)">
+          Location ping received. Waiting for user details.
+        </p>
       </div>
     </div>
   </button>
@@ -204,7 +222,16 @@ const FeedItem: React.FC<{
   status: string;
   active?: boolean;
   onSelect: () => void;
-}> = ({ title, location, time, type, percentage, status, active, onSelect }) => {
+}> = ({
+  title,
+  location,
+  time,
+  type,
+  percentage,
+  status,
+  active,
+  onSelect,
+}) => {
   const configs = {
     FIRE: {
       icon: Flame,
@@ -256,8 +283,12 @@ const FeedItem: React.FC<{
       </div>
       <div className="flex-1">
         <div className="flex items-start justify-between gap-3">
-          <h4 className="text-sm font-semibold text-(--color-text-1)">{title}</h4>
-          <span className="shrink-0 text-[10px] text-(--color-text-3)">{time}</span>
+          <h4 className="text-sm font-semibold text-(--color-text-1)">
+            {title}
+          </h4>
+          <span className="shrink-0 text-[10px] text-(--color-text-3)">
+            {time}
+          </span>
         </div>
         <p className="mt-0.5 text-xs text-(--color-text-3)">{location}</p>
         <div className="mt-3 flex items-center justify-between gap-2">
@@ -277,18 +308,81 @@ const FeedItem: React.FC<{
 };
 
 // --- Main Component ---
+const mapStatusToBridgeIncident = (
+  status: string,
+): BridgeIncident["status"] => {
+  switch (status.toLowerCase()) {
+    case "submitted":
+      return "submitted";
+    case "under review":
+      return "under-review";
+    case "in progress":
+      return "in-progress";
+    case "resolved":
+      return "resolved";
+    default:
+      return "submitted"; // fallback to a safe default
+  }
+};
 
 const TriageFeed: React.FC = () => {
-  const filters: Array<"All" | BridgeIncident["department"]> = ["All", "BFP", "CTMO", "PDRRMO", "PNP"];
-  const [activeCardId, setActiveCardId] = useState<string>(REPORT_FEED_ITEMS[0].id);
-  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<"All" | BridgeIncident["department"]>("All");
+  const filters: Array<"All" | BridgeIncident["department"]> = [
+    "All",
+    "BFP",
+    "CTMO",
+    "PDRRMO",
+    "PNP",
+  ];
+  const [activeCardId, setActiveCardId] = useState<string>(
+    REPORT_FEED_ITEMS[0].id,
+  );
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<
+    "All" | BridgeIncident["department"]
+  >("All");
+
+  const { reports: realtimeReports, connectionStatus } = useRealtimeReports();
+
+  const liveReportItems: ReportFeedItem[] = useMemo(
+    () =>
+      realtimeReports.map((r) => ({
+        id: r.id,
+        title: r.title,
+        location: `Lat ${r.latitude.toFixed(3)}, Lon ${r.longitude.toFixed(3)}`,
+        time: new Date(r.timestamp).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        type: r.type as FeedType,
+        percentage: `${r.confidence}%`,
+        status: r.status,
+        incident: {
+          id: r.id,
+          incidentType: `${r.type} - ${r.title}`,
+          location: `Lat ${r.latitude.toFixed(3)}, Lon ${r.longitude.toFixed(3)}`,
+          reporter: "Unknown",
+          reporterContact: "",
+          department: "BFP",
+          severity: "Medium",
+          status: mapStatusToBridgeIncident(r.status),
+          time: new Date(r.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          reporterDescription: "",
+          internalNote: "",
+        },
+      })),
+    [realtimeReports],
+  );
 
   const filteredReportItems = useMemo(
     () =>
       selectedDepartmentFilter === "All"
-        ? REPORT_FEED_ITEMS
-        : REPORT_FEED_ITEMS.filter((item) => item.incident.department === selectedDepartmentFilter),
-    [selectedDepartmentFilter]
+        ? liveReportItems
+        : liveReportItems.filter(
+            (item) => item.incident.department === selectedDepartmentFilter,
+          ),
+    [selectedDepartmentFilter, liveReportItems],
   );
 
   useEffect(() => {
@@ -302,7 +396,9 @@ const TriageFeed: React.FC = () => {
 
     // If current selection is filtered out, move focus to first visible card.
     // This prevents stale selection IDs when responders switch department tabs.
-    const isActiveReportVisible = filteredReportItems.some((item) => item.id === activeCardId);
+    const isActiveReportVisible = filteredReportItems.some(
+      (item) => item.id === activeCardId,
+    );
     if (isActiveReportVisible) return;
 
     const nextReport = filteredReportItems[0];
@@ -342,7 +438,7 @@ const TriageFeed: React.FC = () => {
 
       {/* Main Scrollable Area */}
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-  <div className="mb-6">
+        <div className="mb-6">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2 text-[10px] font-bold tracking-wider text-(--color-text-red)">
               <span className="relative h-2.5 w-2.5">
@@ -415,8 +511,16 @@ const TriageFeed: React.FC = () => {
       <div className="grid shrink-0 grid-cols-4 border-t border-(--color-border-1) bg-(--color-bg) py-4">
         <StatBlock value="2" label="SOS" color="text-(--color-red)" />
         <StatBlock value="8" label="Active" color="text-(--color-orange)" />
-        <StatBlock value="3" label="Pending" color="text-(--color-text-amber)" />
-        <StatBlock value="14" label="Resolved" color="text-(--color-text-green)" />
+        <StatBlock
+          value="3"
+          label="Pending"
+          color="text-(--color-text-amber)"
+        />
+        <StatBlock
+          value="14"
+          label="Resolved"
+          color="text-(--color-text-green)"
+        />
       </div>
     </div>
   );
