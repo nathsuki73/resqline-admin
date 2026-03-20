@@ -5,6 +5,7 @@ import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 import { useReports } from "@/app/hooks/useReports";
 import { StatBlock } from "./TriageFeedComponents/StatBlock";
 import { FeedItem } from "./TriageFeedComponents/FeedItem";
+import { fetchReportById } from "@/app/services/reports";
 
 // --- Types ---
 type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
@@ -130,6 +131,31 @@ const TriageFeed: React.FC = () => {
     }
   }, [filteredReportItems, activeCardId]);
 
+  const handleSelectReport = async (item: ReportFeedItem) => {
+    setActiveCardId(item.id);
+
+    // 1. Set basic info immediately so the panel isn't blank
+    setActiveIncident(item.incident);
+
+    try {
+      // 2. Fetch the "Heavy" data (Images, etc)
+      console.log(`📡 Fetching full details for: ${item.id}`);
+      const fullData = await fetchReportById(item.id);
+
+      // 3. Merge the new data with the existing incident object
+      const fullIncident: BridgeIncident = {
+        ...item.incident,
+        images: fullData.images || [], // Now TypeScript is happy!
+        reporterDescription:
+          fullData.description || item.incident.reporterDescription,
+      };
+
+      // 4. Update the bridge - this triggers the Detail Panel to show images
+      setActiveIncident(fullIncident);
+    } catch (error) {
+      console.error("Failed to hydrate detail panel:", error);
+    }
+  };
   return (
     <div className="flex h-screen w-77.5 flex-col overflow-hidden border-r border-(--color-border-1) bg-(--color-surface-1) text-(--color-text-2)">
       <div className="z-10 flex shrink-0 items-center justify-between border-b border-(--color-border-1) bg-(--color-surface-1) p-4">
@@ -163,7 +189,6 @@ const TriageFeed: React.FC = () => {
           ))}
         </div>
 
-        {/* Feed List */}
         <div className="flex flex-col gap-1">
           {loading && (
             <div className="p-4 text-center text-xs text-(--color-text-3)">
@@ -176,16 +201,14 @@ const TriageFeed: React.FC = () => {
               key={item.id}
               {...item}
               active={activeCardId === item.id}
-              onSelect={() => {
-                setActiveCardId(item.id);
-                setActiveIncident(item.incident);
-              }}
+              // 🔴 Update this line to use the handleSelectReport function
+              onSelect={() => handleSelectReport(item)}
             />
           ))}
 
           {!loading && filteredReportItems.length === 0 && (
             <div className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) px-3 py-4 text-xs text-(--color-text-3)">
-              No active reports in {selectedDepartmentFilter}.
+              No reports in {selectedDepartmentFilter} right now.
             </div>
           )}
         </div>

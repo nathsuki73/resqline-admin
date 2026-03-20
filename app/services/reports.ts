@@ -9,3 +9,15 @@ export const fetchReports = async () => {
 
   return res.json();
 };
+
+export const fetchReportById = async (id: string) => {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/admin/reports/${id}`,
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch report details for ID: ${id}`);
+  }
+
+  return res.json();
+};

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Phone, Flame, Play, BrainCircuit, X } from "lucide-react";
 import {
   getActiveIncident,
@@ -10,6 +10,7 @@ import {
   type BridgeIncident,
   type BridgeNoteUpdate,
 } from "./incidentBridge";
+import { getSafeImageUrl } from "./TriageFeedComponents/Helper";
 
 const DEFAULT_INCIDENT: BridgeIncident = {
   id: "0441",
@@ -21,8 +22,10 @@ const DEFAULT_INCIDENT: BridgeIncident = {
   severity: "Critical",
   status: "under-review",
   time: "2:41 PM",
-  reporterDescription: "Malaking sunog sa 3-storey building sa may Pag-asa. May naririnig pang sigaw sa loob.",
-  internalNote: "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
+  reporterDescription:
+    "Malaking sunog sa 3-storey building sa may Pag-asa. May naririnig pang sigaw sa loob.",
+  internalNote:
+    "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
 };
 // TODO(API): Replace with server-provided active incident fallback from GET /incidents/:id.
 // Keep as local fallback so UI still renders during cold starts or offline sessions.
@@ -83,11 +86,14 @@ const ConfidenceBar = ({
 
 const IncidentDetailPanel = () => {
   const [incident, setIncident] = useState<BridgeIncident>(DEFAULT_INCIDENT);
+
   const [responderNoteDraft, setResponderNoteDraft] = useState(
-    DEFAULT_INCIDENT.internalNote ?? ""
+    DEFAULT_INCIDENT.internalNote ?? "",
   );
-  const [noteSaveState, setNoteSaveState] = useState<"unsaved" | "saving" | "saved">("saved");
-  const [expandedImage, setExpandedImage] = useState<number | null>(null);
+  const [noteSaveState, setNoteSaveState] = useState<
+    "unsaved" | "saving" | "saved"
+  >("saved");
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
   const hydrateIncidentNote = (nextIncident: BridgeIncident) => {
     // Bridge note sync keeps unsaved panel transitions predictable between Dashboard and All Reports.
@@ -95,6 +101,29 @@ const IncidentDetailPanel = () => {
     if (syncedNote === null) return nextIncident;
     return { ...nextIncident, internalNote: syncedNote };
   };
+
+  const validImages = useMemo(() => {
+    // Check if incident actually contains the images array
+    console.log("🧐 Incident Data in Panel:", incident);
+
+    const rawImages = (incident as any).images || [];
+    console.log("🖼️ Raw Images Count:", rawImages.length);
+
+    const mapped = rawImages
+      .map((img: string) => {
+        const url = getSafeImageUrl(img);
+        if (!url)
+          console.warn(
+            "⚠️ Invalid Image String detected:",
+            img.substring(0, 20) + "...",
+          );
+        return url;
+      })
+      .filter((url: string | null) => url !== null) as string[];
+
+    console.log("✅ Valid Filtered URLs:", mapped.length);
+    return mapped;
+  }, [incident]);
 
   useEffect(() => {
     // Subscribe to cross-panel incident selection and note updates.
@@ -125,12 +154,24 @@ const IncidentDetailPanel = () => {
       setNoteSaveState("saved");
     };
 
-    window.addEventListener(INCIDENT_SELECTED_EVENT, onIncidentSelected as EventListener);
-    window.addEventListener(INCIDENT_NOTE_UPDATED_EVENT, onIncidentNoteUpdated as EventListener);
+    window.addEventListener(
+      INCIDENT_SELECTED_EVENT,
+      onIncidentSelected as EventListener,
+    );
+    window.addEventListener(
+      INCIDENT_NOTE_UPDATED_EVENT,
+      onIncidentNoteUpdated as EventListener,
+    );
 
     return () => {
-      window.removeEventListener(INCIDENT_SELECTED_EVENT, onIncidentSelected as EventListener);
-      window.removeEventListener(INCIDENT_NOTE_UPDATED_EVENT, onIncidentNoteUpdated as EventListener);
+      window.removeEventListener(
+        INCIDENT_SELECTED_EVENT,
+        onIncidentSelected as EventListener,
+      );
+      window.removeEventListener(
+        INCIDENT_NOTE_UPDATED_EVENT,
+        onIncidentNoteUpdated as EventListener,
+      );
     };
   }, [incident.id]);
 
@@ -158,168 +199,189 @@ const IncidentDetailPanel = () => {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
 
-  const incidentTypeShort = incident.incidentType.split(" - ")[0] ?? incident.incidentType;
+  const incidentTypeShort =
+    incident.incidentType.split(" - ")[0] ?? incident.incidentType;
 
   return (
     <div className="flex h-full min-h-0 w-92.5 flex-col overflow-hidden border-r border-(--color-border-1) bg-(--color-surface-1) text-(--color-text-2)">
       <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
         {/* Reporter Section */}
         <SectionHeader title="Reporter" />
-      <div className="mb-6 flex items-center justify-between rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-(--color-orange-border) bg-(--color-orange-glow) text-sm font-bold text-(--color-orange)">
-            {initials || "RD"}
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-(--color-text-1)">
-              {incident.reporter}
-            </h4>
-            <p className="text-xs text-(--color-text-3)">{incident.reporterContact || "No contact provided"}</p>
-          </div>
-        </div>
-        <button type="button" className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) hover:bg-[rgba(67,160,71,0.2)]">
-          <Phone size={14} fill="currentColor" /> Call Now
-        </button>
-      </div>
-
-      {/* Incident Info Grid */}
-      <SectionHeader title="Incident Info" />
-      <div className="mb-6 grid grid-cols-2 gap-3">
-        <InfoCard label="Type" value={incidentTypeShort} color="text-(--color-orange)" />
-        <InfoCard
-          label="Severity"
-          value={`${incident.severity} · SOS`}
-          color="text-(--color-red)"
-          cardClass="border-(--color-red-border) bg-(--color-red-glow)"
-        />
-        <InfoCard label="Department" value={incident.department} />
-        <InfoCard label="Reported" value={`${incident.time} Today`} />
-      </div>
-
-      {/* Media Section */}
-      {/* TODO(API): Replace mock media with GET /incidents/:id/media and map to image/video thumbnails */}
-      <SectionHeader title="Media" />
-      <div className="mb-6 grid grid-cols-2 gap-3">
-        <div 
-          onClick={() => setExpandedImage(0)}
-          className="relative flex aspect-video cursor-pointer flex-col items-center justify-center rounded-lg border border-(--color-orange-border) bg-(--color-orange-glow) transition-all hover:bg-[rgba(245,124,0,0.18)] hover:scale-105"
-        >
-          <Flame size={24} className="text-(--color-orange)/60" />
-          <span className="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[9px] text-(--color-text-2)">
-            Photo · 2.3MB
-          </span>
-        </div>
-        <div 
-          onClick={() => setExpandedImage(1)}
-          className="relative flex aspect-video cursor-pointer flex-col items-center justify-center rounded-lg border border-(--color-orange-border) bg-(--color-orange-glow) transition-all hover:bg-[rgba(245,124,0,0.18)] hover:scale-105"
-        >
-          <Flame size={24} className="text-(--color-orange)/60" />
-          <span className="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[9px] text-(--color-text-2)">
-            Photo · 1.8MB
-          </span>
-        </div>
-      </div>
-
-      {/* AI Analysis */}
-      {/* TODO(API): Replace with GET /incidents/:id/ai-analysis and preserve this confidence-bar schema */}
-      <SectionHeader title="AI Analysis" />
-      <div className="mb-6 rounded-xl border-2 border-(--color-blue-border) bg-linear-to-br from-[rgba(30,136,229,0.08)] to-(--color-surface-2) p-5 shadow-lg shadow-blue-500/10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 text-(--color-text-blue)">
-            <BrainCircuit size={16} />
-            <span className="text-[11px] font-bold uppercase tracking-wide">
-              ResqLine AI — Confidence
-            </span>
-          </div>
-          <span className="text-[10px] text-(--color-text-3)">2:41 PM</span>
-        </div>
-        <ConfidenceBar
-          label="Structure fire detected"
-          value={97}
-          colorClass="bg-[var(--color-red)]"
-        />
-        <ConfidenceBar
-          label="Multi-storey building"
-          value={89}
-          colorClass="bg-[var(--color-orange)]"
-        />
-        <ConfidenceBar
-          label="Active flames visible"
-          value={84}
-          colorClass="bg-[var(--color-orange-dim)]"
-        />
-        <ConfidenceBar
-          label="Civilians possibly trapped"
-          value={61}
-          colorClass="bg-[var(--color-amber)]"
-        />
-      </div>
-
-      {/* Reporter Description */}
-      <SectionHeader title="Reporter Description" />
-      <div className="mb-6 rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4 text-xs italic leading-relaxed text-(--color-text-2)">
-        &quot;{incident.reporterDescription}&quot;
-      </div>
-
-      {/* Responder Notes */}
-      {/* TODO(API): Hydrate and persist notes from incident detail endpoint with optimistic update fallback */}
-      <SectionHeader title="Responder Note - Dispatcher Only" />
-      <div className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4">
-        <textarea
-          value={responderNoteDraft}
-          onChange={(e) => {
-            setResponderNoteDraft(e.target.value);
-            setNoteSaveState("unsaved");
-          }}
-          rows={4}
-          placeholder="Add responder note..."
-          className="w-full resize-none rounded-lg border border-(--color-border-2) bg-(--color-surface-1) px-3 py-2 text-xs leading-relaxed text-(--color-text-2) placeholder-(--color-text-4) focus:border-(--color-orange-border) focus:outline-none"
-        />
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-[10px] text-(--color-text-3)">
-            {noteSaveState === "unsaved"
-              ? "Unsaved changes"
-              : noteSaveState === "saving"
-              ? "Saving..."
-              : "Saved"}
-          </p>
-          <button
-            type="button"
-            onClick={saveResponderNote}
-            disabled={noteSaveState === "saving"}
-            className="ui-btn ui-btn-primary px-3 py-1.5 text-[10px] disabled:opacity-50"
-          >
-            Save Note
-          </button>
-        </div>
-        </div>
-
-      {/* Expanded Image Modal */}
-      {expandedImage !== null && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setExpandedImage(null)}
-        >
-          <div 
-            className="relative max-h-[90vh] max-w-[90vw] rounded-xl border border-(--color-orange-border) overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setExpandedImage(null)}
-              className="absolute top-4 right-4 z-10 rounded-lg bg-black/50 p-2 hover:bg-black/70 transition-all"
-            >
-              <X size={20} className="text-white" />
-            </button>
-            <div className="flex h-full w-full items-center justify-center bg-(--color-orange-glow) p-4">
-              <Flame size={120} className="text-(--color-orange)/60" />
-              <span className="absolute bottom-4 left-4 rounded bg-black/50 px-3 py-1.5 text-sm text-(--color-text-2)">
-                {expandedImage === 0 ? "Photo · 2.3MB" : "Photo · 1.8MB"}
-              </span>
+        <div className="mb-6 flex items-center justify-between rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-(--color-orange-border) bg-(--color-orange-glow) text-sm font-bold text-(--color-orange)">
+              {initials || "RD"}
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-(--color-text-1)">
+                {incident.reporter}
+              </h4>
+              <p className="text-xs text-(--color-text-3)">
+                {incident.reporterContact || "No contact provided"}
+              </p>
             </div>
           </div>
+          <button
+            type="button"
+            className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) hover:bg-[rgba(67,160,71,0.2)]"
+          >
+            <Phone size={14} fill="currentColor" /> Call Now
+          </button>
         </div>
-      )}
+
+        {/* Incident Info Grid */}
+        <SectionHeader title="Incident Info" />
+        <div className="mb-6 grid grid-cols-2 gap-3">
+          <InfoCard
+            label="Type"
+            value={incidentTypeShort}
+            color="text-(--color-orange)"
+          />
+          <InfoCard
+            label="Severity"
+            value={`${incident.severity} · SOS`}
+            color="text-(--color-red)"
+            cardClass="border-(--color-red-border) bg-(--color-red-glow)"
+          />
+          <InfoCard label="Department" value={incident.department} />
+          <InfoCard label="Reported" value={`${incident.time} Today`} />
+        </div>
+
+        {/* Dynamic Media Section */}
+        <SectionHeader title={`Media (${validImages.length})`} />
+        {validImages.length > 0 ? (
+          <div className="mb-6 grid grid-cols-2 gap-3">
+            {validImages.map((url, index) => (
+              <div
+                key={index}
+                onClick={() => setExpandedImage(url)}
+                className="group relative aspect-video cursor-pointer overflow-hidden rounded-lg border border-(--color-border-1) bg-(--color-surface-2) transition-all hover:border-(--color-orange-border) hover:scale-[1.02]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`Incident evidence ${index + 1}`}
+                  className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
+                  onError={(e) => {
+                    // Safety: hide the image if it fails to load despite the string check
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[9px] text-white">
+                  Photo {index + 1}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mb-6 rounded-lg border border-dashed border-(--color-border-1) p-4 text-center">
+            <p className="text-[10px] text-(--color-text-4) uppercase font-bold tracking-widest">
+              No Media Attached
+            </p>
+          </div>
+        )}
+
+        {/* AI Analysis */}
+        {/* TODO(API): Replace with GET /incidents/:id/ai-analysis and preserve this confidence-bar schema */}
+        <SectionHeader title="AI Analysis" />
+        <div className="mb-6 rounded-xl border-2 border-(--color-blue-border) bg-linear-to-br from-[rgba(30,136,229,0.08)] to-(--color-surface-2) p-5 shadow-lg shadow-blue-500/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-(--color-text-blue)">
+              <BrainCircuit size={16} />
+              <span className="text-[11px] font-bold uppercase tracking-wide">
+                ResqLine AI — Confidence
+              </span>
+            </div>
+            <span className="text-[10px] text-(--color-text-3)">2:41 PM</span>
+          </div>
+          <ConfidenceBar
+            label="Structure fire detected"
+            value={97}
+            colorClass="bg-[var(--color-red)]"
+          />
+          <ConfidenceBar
+            label="Multi-storey building"
+            value={89}
+            colorClass="bg-[var(--color-orange)]"
+          />
+          <ConfidenceBar
+            label="Active flames visible"
+            value={84}
+            colorClass="bg-[var(--color-orange-dim)]"
+          />
+          <ConfidenceBar
+            label="Civilians possibly trapped"
+            value={61}
+            colorClass="bg-[var(--color-amber)]"
+          />
+        </div>
+
+        {/* Reporter Description */}
+        <SectionHeader title="Reporter Description" />
+        <div className="mb-6 rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4 text-xs italic leading-relaxed text-(--color-text-2)">
+          &quot;{incident.reporterDescription}&quot;
+        </div>
+
+        {/* Responder Notes */}
+        {/* TODO(API): Hydrate and persist notes from incident detail endpoint with optimistic update fallback */}
+        <SectionHeader title="Responder Note - Dispatcher Only" />
+        <div className="rounded-xl border border-(--color-border-1) bg-(--color-surface-2) p-4">
+          <textarea
+            value={responderNoteDraft}
+            onChange={(e) => {
+              setResponderNoteDraft(e.target.value);
+              setNoteSaveState("unsaved");
+            }}
+            rows={4}
+            placeholder="Add responder note..."
+            className="w-full resize-none rounded-lg border border-(--color-border-2) bg-(--color-surface-1) px-3 py-2 text-xs leading-relaxed text-(--color-text-2) placeholder-(--color-text-4) focus:border-(--color-orange-border) focus:outline-none"
+          />
+          <div className="mt-3 flex items-center justify-between">
+            <p className="text-[10px] text-(--color-text-3)">
+              {noteSaveState === "unsaved"
+                ? "Unsaved changes"
+                : noteSaveState === "saving"
+                  ? "Saving..."
+                  : "Saved"}
+            </p>
+            <button
+              type="button"
+              onClick={saveResponderNote}
+              disabled={noteSaveState === "saving"}
+              className="ui-btn ui-btn-primary px-3 py-1.5 text-[10px] disabled:opacity-50"
+            >
+              Save Note
+            </button>
+          </div>
+        </div>
+
+        {/* Expanded Image Modal */}
+        {expandedImage !== null && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+            onClick={() => setExpandedImage(null)}
+          >
+            <div
+              className="relative max-h-[90vh] max-w-[90vw] rounded-xl border border-(--color-orange-border) overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setExpandedImage(null)}
+                className="absolute top-4 right-4 z-10 rounded-lg bg-black/50 p-2 hover:bg-black/70 transition-all"
+              >
+                <X size={20} className="text-white" />
+              </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={expandedImage}
+                alt="Expanded incident evidence"
+                className="h-full w-full object-contain"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
