@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
 import {
   getReportCategoryInput,
+  type IncidentCategoryType,
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
 } from "@/app/constants/reportCategories";
@@ -14,6 +15,7 @@ import {
 } from "@/app/constants/reportStatus";
 import {
   getActiveIncident,
+  INCIDENT_CLEARED_EVENT,
   INCIDENT_SELECTED_EVENT,
   type BridgeIncident,
 } from "./incidentBridge";
@@ -30,9 +32,7 @@ interface IncidentMarker {
 
 type IncidentSummary = {
   total: number;
-  sos: number;
-  fire: number;
-  flood: number;
+  byType: Record<IncidentCategoryType, number>;
 };
 
 const isValidLatitude = (value: number): boolean =>
@@ -64,6 +64,8 @@ const IncidentMap: React.FC<{
   departmentFilter?: "All" | BridgeIncident["department"];
   showIncidentsLayer?: boolean;
   onSummaryChange?: (summary: IncidentSummary) => void;
+  showSelectedOnly?: boolean;
+  autoFitAllVisible?: boolean;
 }> = ({
   onOpenFullMap,
   onIncidentSelect,
@@ -73,6 +75,8 @@ const IncidentMap: React.FC<{
   departmentFilter = "All",
   showIncidentsLayer = true,
   onSummaryChange,
+  showSelectedOnly = false,
+  autoFitAllVisible = false,
 }) => {
   const mapRef = useRef<MapRef | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -85,6 +89,9 @@ const IncidentMap: React.FC<{
     latitude: 14.6574,
     zoom: 13, // Slightly zoomed out to see markers better
   });
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(
+    () => getActiveIncident()?.id ?? null,
+  );
 
   // Single source of truth: all reports already merged/reconciled in reportsStore.
   const incidents = useMemo((): IncidentMarker[] => {
@@ -227,19 +234,79 @@ const IncidentMap: React.FC<{
     return byId;
   }, [incidents]);
 
+  const visibleIncidents = useMemo(() => {
+    if (!showSelectedOnly) return filteredIncidents;
+    if (!selectedIncidentId) return filteredIncidents;
+
+    const selectedOnly = filteredIncidents.filter(
+      (incident) => String(incident.incident.id) === String(selectedIncidentId),
+    );
+
+    return selectedOnly.length > 0 ? selectedOnly : filteredIncidents;
+  }, [filteredIncidents, selectedIncidentId, showSelectedOnly]);
+
+  const summaryCategoryTypes = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    return reports
+      .filter((report: any) => {
+        const categoryInput = getReportCategoryInput(report);
+        const department = mapCategoryCodeToDepartment(categoryInput);
+
+        if (departmentFilter !== "All" && department !== departmentFilter) {
+          return false;
+        }
+
+        if (!normalizedSearch) return true;
+
+        const lat = report.reportedAt?.latitude || report.location?.latitude;
+        const lon = report.reportedAt?.longitude || report.location?.longitude;
+        const geoCode =
+          report.reportedAt?.reverseGeoCode || report.location?.reverseGeoCode;
+        const locationString =
+          geoCode ?? (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
+
+        const searchTarget = [
+          report.description || "",
+          locationString,
+          report.reportByName || report.reportedBy?.name || "",
+          department,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return searchTarget.includes(normalizedSearch);
+      })
+      .map((report: any) => mapCategoryCodeToType(getReportCategoryInput(report)));
+  }, [reports, searchQuery, departmentFilter]);
+
   useEffect(() => {
+    const initialByType: Record<IncidentCategoryType, number> = {
+      SOS: 0,
+      MEDICAL: 0,
+      TRAFFIC: 0,
+      FIRE: 0,
+      FLOOD: 0,
+      STRUCTURAL: 0,
+      OTHER: 0,
+    };
+
+    summaryCategoryTypes.forEach((type) => {
+      initialByType[type] += 1;
+    });
+
     const summary: IncidentSummary = {
-      total: filteredIncidents.length,
-      sos: filteredIncidents.filter((incident) => incident.type === "SOS").length,
-      fire: filteredIncidents.filter((incident) => incident.type === "Fire").length,
-      flood: filteredIncidents.filter((incident) => incident.type === "Flood").length,
+      total: summaryCategoryTypes.length,
+      byType: initialByType,
     };
 
     onSummaryChange?.(summary);
-  }, [filteredIncidents, onSummaryChange]);
+  }, [summaryCategoryTypes, onSummaryChange]);
 
   // Auto-center on initial load and refresh, not on search changes
   useEffect(() => {
+    if (autoFitAllVisible) return;
+    if (showSelectedOnly) return;
     if (incidents.length === 0) return;
     if (hasInitialCentered.current && refreshToken === 0) return;
 
@@ -251,7 +318,7 @@ const IncidentMap: React.FC<{
       zoom: 14,
     }));
     console.log("🎯 Map centered on first incident");
-  }, [incidents, refreshToken]);
+  }, [incidents, refreshToken, showSelectedOnly, autoFitAllVisible]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -336,21 +403,76 @@ const IncidentMap: React.FC<{
 
     const onIncidentSelected = (event: Event) => {
       const detail = (event as CustomEvent<BridgeIncident>).detail;
+      setSelectedIncidentId(detail?.id ?? null);
       zoomToIncident(detail ?? null);
+    };
+
+    const onIncidentCleared = () => {
+      setSelectedIncidentId(null);
     };
 
     window.addEventListener(
       INCIDENT_SELECTED_EVENT,
       onIncidentSelected as EventListener,
     );
+    window.addEventListener(INCIDENT_CLEARED_EVENT, onIncidentCleared);
 
     return () => {
       window.removeEventListener(
         INCIDENT_SELECTED_EVENT,
         onIncidentSelected as EventListener,
       );
+      window.removeEventListener(INCIDENT_CLEARED_EVENT, onIncidentCleared);
     };
   }, [incidentById]);
+
+  useEffect(() => {
+    if (!autoFitAllVisible || showSelectedOnly) return;
+    if (visibleIncidents.length === 0) return;
+
+    if (visibleIncidents.length === 1) {
+      const only = visibleIncidents[0];
+      const nextView = {
+        longitude: only.lng,
+        latitude: only.lat,
+        zoom: 12,
+      };
+
+      setViewState((prev) => ({ ...prev, ...nextView }));
+      mapRef.current?.flyTo({
+        center: [only.lng, only.lat],
+        zoom: nextView.zoom,
+        duration: 600,
+        essential: true,
+      });
+      return;
+    }
+
+    const first = visibleIncidents[0];
+    let minLng = first.lng;
+    let maxLng = first.lng;
+    let minLat = first.lat;
+    let maxLat = first.lat;
+
+    visibleIncidents.forEach((incident) => {
+      if (incident.lng < minLng) minLng = incident.lng;
+      if (incident.lng > maxLng) maxLng = incident.lng;
+      if (incident.lat < minLat) minLat = incident.lat;
+      if (incident.lat > maxLat) maxLat = incident.lat;
+    });
+
+    mapRef.current?.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      {
+        padding: 120,
+        duration: 700,
+        maxZoom: 13,
+      },
+    );
+  }, [autoFitAllVisible, showSelectedOnly, visibleIncidents]);
 
   return (
     <div
@@ -375,7 +497,7 @@ const IncidentMap: React.FC<{
         <NavigationControl position="bottom-right" />
 
         {showIncidentsLayer
-          ? filteredIncidents.map((incident) => (
+          ? visibleIncidents.map((incident) => (
           (() => {
             const markerStyle = getCategoryMarkerStyle(incident.incident.type);
             return (

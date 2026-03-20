@@ -4,6 +4,7 @@ import IncidentMap from "../Dashboard/IncidentMap"; // Using your existing map
 import OperationalMapHeader from "./OperationalMapHeader";
 import OperationalSidebar from "./OperationalSideBar";
 import { Search } from "lucide-react";
+import { type IncidentCategoryType } from "@/app/constants/reportCategories";
 import {
   queueIncidentAction,
   setActiveIncident,
@@ -16,16 +17,42 @@ const DEPARTMENT_FILTERS = ["All", "BFP", "CTMO", "PDRRMO", "PNP"] as const;
 
 type IncidentSummary = {
   total: number;
-  sos: number;
-  fire: number;
-  flood: number;
+  byType: Record<IncidentCategoryType, number>;
+};
+
+const SUMMARY_TYPE_ORDER: IncidentCategoryType[] = [
+  "SOS",
+  "FIRE",
+  "FLOOD",
+  "STRUCTURAL",
+  "MEDICAL",
+  "TRAFFIC",
+  "OTHER",
+];
+
+const SUMMARY_TYPE_META: Record<IncidentCategoryType, { label: string; color: string }> = {
+  SOS: { label: "SOS", color: "bg-(--color-red)" },
+  FIRE: { label: "Fire", color: "bg-(--color-orange)" },
+  FLOOD: { label: "Flood", color: "bg-(--color-blue)" },
+  STRUCTURAL: { label: "Structural", color: "bg-(--color-purple)" },
+  MEDICAL: { label: "Medical", color: "bg-(--color-green)" },
+  TRAFFIC: { label: "Traffic", color: "bg-(--color-amber)" },
+  OTHER: { label: "Other", color: "bg-(--color-text-3)" },
+};
+
+const EMPTY_SUMMARY_TYPES: Record<IncidentCategoryType, number> = {
+  SOS: 0,
+  MEDICAL: 0,
+  TRAFFIC: 0,
+  FIRE: 0,
+  FLOOD: 0,
+  STRUCTURAL: 0,
+  OTHER: 0,
 };
 
 const OperationalMapView = ({ onClose }: { onClose: () => void }) => {
   const [selectedIncident, setSelectedIncident] =
     useState<BridgeIncident | null>(null);
-  const [refreshToken, setRefreshToken] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] =
@@ -33,21 +60,10 @@ const OperationalMapView = ({ onClose }: { onClose: () => void }) => {
   const [showIncidentsLayer, setShowIncidentsLayer] = useState(true);
   const [summary, setSummary] = useState<IncidentSummary>({
     total: 0,
-    sos: 0,
-    fire: 0,
-    flood: 0,
+    byType: EMPTY_SUMMARY_TYPES,
   });
   const { shouldRender: shouldRenderSidebar, isVisible: isSidebarVisible } =
     useModalDissolve(selectedIncident !== null, SIDEBAR_EXIT_MS);
-
-  const handleRefreshMap = () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    setSelectedIncident(null);
-    setSearchInput("");
-    setActiveSearchQuery("");
-    setRefreshToken((prev) => prev + 1);
-  };
 
   const handleSearchGo = () => {
     setActiveSearchQuery(searchInput);
@@ -71,10 +87,14 @@ const OperationalMapView = ({ onClose }: { onClose: () => void }) => {
     onClose();
   };
 
+  const visibleSummaryTypes = SUMMARY_TYPE_ORDER.filter(
+    (type) => (summary.byType[type] ?? 0) > 0,
+  );
+
   return (
     <div className="relative flex h-full w-full overflow-hidden bg-(--color-bg)">
       {/* 1. Header Overlay */}
-      <OperationalMapHeader onRefresh={handleRefreshMap} isRefreshing={isRefreshing} />
+      <OperationalMapHeader />
 
       <div className="flex h-full w-full pt-16">
         <div className="relative min-w-0 flex-1">
@@ -159,14 +179,22 @@ const OperationalMapView = ({ onClose }: { onClose: () => void }) => {
       </div>
 
       {/* 4. Incident Summary Overlay (Floating Right) */}
-      <div className="absolute top-8 right-4 z-20 w-32 rounded-xl border border-(--color-border-1) bg-(--color-surface-1)/90 p-3 shadow-2xl">
+      <div className="absolute top-8 right-4 z-20 w-40 rounded-xl border border-(--color-border-1) bg-(--color-surface-1)/90 p-3 shadow-2xl">
         <p className="mb-2 text-[8px] font-bold uppercase text-(--color-text-4)">
           Summary
         </p>
         <div className="space-y-1">
-          <SummaryLine color="bg-(--color-red)" label="SOS" count={String(summary.sos)} />
-          <SummaryLine color="bg-(--color-orange)" label="Fire" count={String(summary.fire)} />
-          <SummaryLine color="bg-(--color-blue)" label="Flood" count={String(summary.flood)} />
+          {visibleSummaryTypes.map((type) => {
+            const meta = SUMMARY_TYPE_META[type];
+            return (
+              <SummaryLine
+                key={type}
+                color={meta.color}
+                label={meta.label}
+                count={String(summary.byType[type] ?? 0)}
+              />
+            );
+          })}
           <SummaryLine color="bg-(--color-text-2)" label="Total" count={String(summary.total)} />
         </div>
       </div>
@@ -175,12 +203,12 @@ const OperationalMapView = ({ onClose }: { onClose: () => void }) => {
       <div className="h-full w-full">
         <IncidentMap
           onIncidentSelect={setSelectedIncident}
-          refreshToken={refreshToken}
-          onRefreshComplete={() => setIsRefreshing(false)}
           searchQuery={activeSearchQuery}
           departmentFilter={departmentFilter}
           showIncidentsLayer={showIncidentsLayer}
           onSummaryChange={setSummary}
+          showSelectedOnly={false}
+          autoFitAllVisible={true}
         />
       </div>
         </div>

@@ -91,7 +91,10 @@ export default function ResponderDashboard() {
           ) : null}
 
           <div className="relative min-w-0 flex-1 bg-black">
-            <IncidentMap onOpenFullMap={() => setShowFullMap(true)} />
+            <IncidentMap
+              onOpenFullMap={() => setShowFullMap(true)}
+              showSelectedOnly={true}
+            />
           </div>
         </div>
       </main>

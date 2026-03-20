@@ -1,13 +1,7 @@
 import React from "react";
-import { RefreshCw, Circle } from "lucide-react";
+import { Circle } from "lucide-react";
 
-const OperationalMapHeader = ({
-  onRefresh,
-  isRefreshing,
-}: {
-  onRefresh: () => void;
-  isRefreshing: boolean;
-}) => {
+const OperationalMapHeader = () => {
   return (
     <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between border-b border-(--color-border-1) bg-(--color-surface-1) p-4">
       <div className="flex flex-col">
@@ -24,7 +18,7 @@ const OperationalMapHeader = ({
           <Circle size={8} fill="currentColor" className="animate-pulse" />
           Live
         </div>
-        <button
+        {/* <button
           type="button"
           onClick={onRefresh}
           disabled={isRefreshing}
@@ -32,7 +26,8 @@ const OperationalMapHeader = ({
         >
           {isRefreshing ? "Refreshing..." : "Refresh"}
           <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-        </button>
+        </button> */}
+        {/* Refresh button intentionally disabled */}
       </div>
     </div>
   );
