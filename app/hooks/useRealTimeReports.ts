@@ -20,8 +20,14 @@ export function useRealtimeReports() {
   const [reports, setReports] = useState<Report[]>([]);
   const [connectionStatus, setConnectionStatus] = useState("connecting");
   const isMounted = useRef(true);
+  const isLocalDbEnabled = process.env.NEXT_PUBLIC_USE_LOCAL_DB === "true";
 
   useEffect(() => {
+    if (isLocalDbEnabled) {
+      setConnectionStatus("local");
+      return;
+    }
+
     isMounted.current = true;
     const connection = getSignalRConnection();
 
@@ -75,7 +81,7 @@ export function useRealtimeReports() {
       connection.off("reportcreated", handleReportCreated);
       connection.off("reportstatuschanged", handleStatusChanged);
     };
-  }, []);
+  }, [isLocalDbEnabled]);
 
   return { reports, connectionStatus };
 }

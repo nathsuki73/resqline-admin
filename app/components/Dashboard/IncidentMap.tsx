@@ -4,6 +4,10 @@ import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/mapbox
 import { Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
 import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
+import {
+  mapCategoryCodeToDepartment,
+  mapCategoryCodeToType,
+} from "@/app/constants/reportCategories";
 import type { BridgeIncident } from "./incidentBridge";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -30,13 +34,6 @@ const mapStatusToSlug = (status: unknown): BridgeIncident["status"] => {
   }
   if (status === 3 || status === "resolved") return "resolved";
   return "under-review";
-};
-
-const mapCategoryToDepartment = (category: unknown): BridgeIncident["department"] => {
-  if (category === 3) return "BFP";
-  if (category === 2) return "CTMO";
-  if (category === 5) return "PNP";
-  return "PDRRMO";
 };
 
 const mapCategoryToSeverity = (category: unknown): BridgeIncident["severity"] => {
@@ -121,7 +118,7 @@ const IncidentMap: React.FC<{
               r.reportByPhoneNumber ||
               r.reportedBy?.phoneNumber ||
               "No contact provided",
-            department: mapCategoryToDepartment(r.category),
+            department: mapCategoryCodeToDepartment(r.category),
             severity: mapCategoryToSeverity(r.category),
             status: mapStatusToSlug(r.status),
             time: rawDate
@@ -134,7 +131,7 @@ const IncidentMap: React.FC<{
             internalNote: r.internalNote || "",
             aiAnalysis: r.aiProbabilities || {},
             images: r.image || r.images || [],
-            type: incidentCategoryName.toUpperCase(),
+            type: mapCategoryCodeToType(r.category),
           },
         };
       })

@@ -315,7 +315,7 @@ const mapIncidentStatusToApiStatus = (status: IncidentStatus): number => {
 const mapCategoryToDepartment = (category: unknown): IncidentDepartment => {
 	if (category === 3) return "bfp";
 	if (category === 2) return "ctmo";
-	if (category === 5) return "pnp";
+	if (category === 5) return "pdrmo";
 	return "pdrmo";
 };
 

@@ -202,7 +202,7 @@ const IncidentDetailPanel = () => {
     : "UN"; // "UN" for Unknown
 
   const incidentTypeShort =
-    incident.type || // 🟢 Priority 1: The Category (FIRE, CRASH, etc.)
+    incident.type || // 🟢 Priority 1: The Category (FIRE, TRAFFIC, STRUCTURAL, etc.)
     (incident.incidentType.split(" - ")[0] ?? incident.incidentType); // Fallback
 
   return (

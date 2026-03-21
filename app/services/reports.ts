@@ -1,6 +1,18 @@
+import {
+  fetchLocalReportById,
+  fetchLocalReports,
+  updateLocalReportStatus,
+} from "./localReportsDb";
+
+const isLocalDbEnabled = process.env.NEXT_PUBLIC_USE_LOCAL_DB === "true";
+
 export const fetchReports = async () => {
+  if (isLocalDbEnabled) {
+    return fetchLocalReports();
+  }
+
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/admin/reports?sort=date&pageSize=10&pageoffset=0`,
+    `${process.env.NEXT_PUBLIC_API_URL}/admin/reports?sort=date&pageSize=10&pageOffset=0`,
   );
 
   if (!res.ok) {
@@ -11,6 +23,10 @@ export const fetchReports = async () => {
 };
 
 export const fetchReportById = async (id: string) => {
+  if (isLocalDbEnabled) {
+    return fetchLocalReportById(id);
+  }
+
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/admin/reports/${id}`,
   );
@@ -23,6 +39,10 @@ export const fetchReportById = async (id: string) => {
 };
 
 export const updateReportStatus = async (id: string, status: number) => {
+  if (isLocalDbEnabled) {
+    return updateLocalReportStatus(id, status);
+  }
+
   const url = `${process.env.NEXT_PUBLIC_API_URL}/admin/reports/${id}/status`;
 
   // 🟢 LOG 1: Before calling the API

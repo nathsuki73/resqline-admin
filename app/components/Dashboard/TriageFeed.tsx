@@ -12,9 +12,14 @@ import { useReports } from "@/app/hooks/useReports";
 import { StatBlock } from "./TriageFeedComponents/StatBlock";
 import { FeedItem } from "./TriageFeedComponents/FeedItem";
 import { fetchReportById, updateReportStatus } from "@/app/services/reports";
+import {
+  mapCategoryCodeToDepartment,
+  mapCategoryCodeToType,
+  type IncidentCategoryType,
+} from "@/app/constants/reportCategories";
 
 // --- Types ---
-type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
+type FeedType = IncidentCategoryType;
 
 interface ReportFeedItem {
   id: string;
@@ -26,24 +31,6 @@ interface ReportFeedItem {
   status: string;
   incident: BridgeIncident;
 }
-
-// --- Helpers ---
-const mapCategoryToType = (category: number): FeedType => {
-  switch (category) {
-    case 1:
-      return "MEDICAL";
-    case 2:
-      return "CRASH";
-    case 3:
-      return "FIRE";
-    case 4:
-      return "FLOOD";
-    case 5:
-      return "CRIME";
-    default:
-      return "OTHER";
-  }
-};
 
 // Inside TriageFeed.tsx
 const mapStatus = (status: number): string => {
@@ -76,7 +63,7 @@ const TriageFeed: React.FC = () => {
   const liveReportItems: ReportFeedItem[] = useMemo(
     () =>
       mergedReports.map((r) => {
-        const incidentCategoryName = mapCategoryToType(r.category);
+        const incidentCategoryName = mapCategoryCodeToType(r.category);
 
         // 🟢 1. Handle Location Fallback (API uses 'location', SignalR uses 'reportedAt')
         const lat = r.reportedAt?.latitude || r.location?.latitude;
@@ -116,11 +103,9 @@ const TriageFeed: React.FC = () => {
               r.reportedBy?.phoneNumber ||
               "No contact provided",
             aiAnalysis: r.aiProbabilities || {},
-            department: (r.category === 3
-              ? "BFP"
-              : r.category === 2
-                ? "CTMO"
-                : "PDRRMO") as BridgeIncident["department"],
+            department: mapCategoryCodeToDepartment(
+              r.category,
+            ) as BridgeIncident["department"],
             severity: (r.status === 1 ? "Critical" : "Medium") as
               | "Critical"
               | "High"

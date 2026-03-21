@@ -1,7 +1,8 @@
-import { Droplets, Flame, ShieldAlert, Truck } from "lucide-react";
+import { Building2, Droplets, Flame, ShieldAlert, Truck } from "lucide-react";
 import { BridgeIncident } from "../incidentBridge";
+import { type IncidentCategoryType } from "@/app/constants/reportCategories";
 
-type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
+type FeedType = IncidentCategoryType;
 
 interface ReportFeedItem {
   id: string;
@@ -34,7 +35,7 @@ export const FeedItem: React.FC<
       border: "border-(--color-orange-border)",
       tag: "bg-(--color-orange-glow) text-(--color-orange)",
     },
-    CRASH: {
+    TRAFFIC: {
       icon: Truck,
       color: "text-(--color-text-amber)",
       bg: "bg-(--color-amber-glow)",
@@ -48,8 +49,8 @@ export const FeedItem: React.FC<
       border: "border-(--color-blue-border)",
       tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
     },
-    CRIME: {
-      icon: ShieldAlert,
+    STRUCTURAL: {
+      icon: Building2,
       color: "text-(--color-text-purple)",
       bg: "bg-(--color-purple-glow)",
       border: "border-(--color-purple-border)",

@@ -6,7 +6,6 @@ import IncidentMap from "./IncidentMap";
 import OperationalMapView from "../MapView/OperationalMapView";
 import { useState, useEffect } from "react";
 import {
-  getActiveIncident,
   INCIDENT_CLEARED_EVENT,
   INCIDENT_SELECTED_EVENT,
   type BridgeIncident,
@@ -31,9 +30,6 @@ export default function ResponderDashboard() {
   const detailTransitionStyle = getDetailTransitionStyle(isDetailVisible);
 
   useEffect(() => {
-    // Check on mount
-    if (getActiveIncident()) setHasSelection(true);
-
     // Listen for new selections
     const onSelect = (event: Event) => {
       const detail = (event as CustomEvent<BridgeIncident>).detail;
