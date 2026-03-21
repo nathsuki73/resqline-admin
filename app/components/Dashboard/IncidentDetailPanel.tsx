@@ -276,37 +276,63 @@ const IncidentDetailPanel = () => {
 
         {/* AI Analysis */}
         {/* TODO(API): Replace with GET /incidents/:id/ai-analysis and preserve this confidence-bar schema */}
-        <SectionHeader title="AI Analysis" />
+        <SectionHeader title="ResqLine AI — Analysis" />
         <div className="mb-6 rounded-xl border-2 border-(--color-blue-border) bg-linear-to-br from-[rgba(30,136,229,0.08)] to-(--color-surface-2) p-5 shadow-lg shadow-blue-500/10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-(--color-text-blue)">
               <BrainCircuit size={16} />
               <span className="text-[11px] font-bold uppercase tracking-wide">
-                ResqLine AI — Confidence
+                Confidence Ranking
               </span>
             </div>
-            <span className="text-[10px] text-(--color-text-3)">2:41 PM</span>
+            <span className="text-[10px] text-(--color-text-3)">
+              {incident.time}
+            </span>
           </div>
-          <ConfidenceBar
-            label="Structure fire detected"
-            value={97}
-            colorClass="bg-[var(--color-red)]"
-          />
-          <ConfidenceBar
-            label="Multi-storey building"
-            value={89}
-            colorClass="bg-[var(--color-orange)]"
-          />
-          <ConfidenceBar
-            label="Active flames visible"
-            value={84}
-            colorClass="bg-[var(--color-orange-dim)]"
-          />
-          <ConfidenceBar
-            label="Civilians possibly trapped"
-            value={61}
-            colorClass="bg-[var(--color-amber)]"
-          />
+
+          {/* 🟢 Sorting and Rendering Logic */}
+          {Object.entries(incident.aiAnalysis || {})
+            .sort(([, a], [, b]) => (b as number) - (a as number)) // Sort descending
+            .map(([key, value]) => {
+              const confidence = Math.round((value as number) * 100);
+
+              // Map the technical keys to readable labels and theme colors
+              const config: Record<string, { label: string; color: string }> = {
+                fire: {
+                  label: "Fire Detection",
+                  color: "bg-[var(--color-red)]",
+                },
+                smoke: { label: "Smoke Detected", color: "bg-gray-500" },
+                flood: { label: "Flood / Water", color: "bg-blue-500" },
+                injured_person: {
+                  label: "Injured Person",
+                  color: "bg-[var(--color-orange)]",
+                },
+                traffic_accident: {
+                  label: "Traffic Accident",
+                  color: "bg-indigo-500",
+                },
+                damaged_structures: {
+                  label: "Damaged Structures",
+                  color: "bg-[var(--color-amber)]",
+                },
+                normal_scene: {
+                  label: "Normal Scene",
+                  color: "bg-emerald-500",
+                },
+              };
+
+              const item = config[key] || { label: key, color: "bg-gray-400" };
+
+              return (
+                <ConfidenceBar
+                  key={key}
+                  label={item.label}
+                  value={confidence}
+                  colorClass={item.color}
+                />
+              );
+            })}
         </div>
 
         {/* Reporter Description */}

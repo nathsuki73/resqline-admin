@@ -109,6 +109,7 @@ const TriageFeed: React.FC = () => {
               r.reportByPhoneNumber ||
               r.reportedBy?.phoneNumber ||
               "No contact provided",
+            aiAnalysis: r.aiProbabilities || {},
             department: (r.category === 3
               ? "BFP"
               : r.category === 2
