@@ -13,7 +13,7 @@ export const getHeaderTransitionStyle = (
 ): CSSProperties => ({
   transitionDuration: `${isVisible ? PANEL_ENTRANCE_MS : PANEL_EXIT_MS}ms`,
   transitionTimingFunction: isVisible ? PANEL_EASING_IN : PANEL_EASING_OUT,
-  willChange: "max-height, transform, opacity",
+  willChange: "max-height, opacity",
 });
 
 export const getDetailTransitionStyle = (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import AlertsSection from "./components/settings/AlertsSection";
 import AllReportsSection from "./components/AllReports/AllReportsSection";
 import IncidentMap from "./components/Dashboard/IncidentMap";
@@ -13,6 +13,8 @@ import SettingsNav from "./components/SettingsNav";
 import SideNav, { SideNavPanel, SideNavTriageItem } from "./components/SideNav";
 import TriageFeed from "./components/Dashboard/TriageFeed";
 import OperationalMapView from "./components/MapView/OperationalMapView";
+import { useReports } from "./hooks/useReports";
+import { useRealtimeReports } from "./hooks/useRealTimeReports";
 
 export default function ResponderDashboard() {
   const [activePanel, setActivePanel] = useState<SideNavPanel>("triage");
@@ -21,8 +23,27 @@ export default function ResponderDashboard() {
   const [activeSettingsItem, setActiveSettingsItem] =
     useState<string>("profile-account");
 
-  // TODO: Replace with API call to detect active SOS incidents from backend
-  const hasSosAlerts = true; // Currently hardcoded; will be dynamic from API
+  const { reports: apiReports } = useReports();
+  const { reports: realtimeReports } = useRealtimeReports();
+
+  const hasSosAlerts = useMemo(() => {
+    const isClosedStatus = (status: unknown) => {
+      if (typeof status === "number") return status === 3 || status === 4;
+      if (typeof status === "string") {
+        const normalized = status.toLowerCase();
+        return normalized === "resolved" || normalized === "rejected";
+      }
+      return false;
+    };
+
+    const isSosReport = (report: any) => {
+      const type = typeof report?.type === "string" ? report.type.toLowerCase() : "";
+      return report?.category === 1 || type === "sos" || type === "medical";
+    };
+
+    const merged = [...(Array.isArray(apiReports) ? apiReports : []), ...(Array.isArray(realtimeReports) ? realtimeReports : [])];
+    return merged.some((report: any) => isSosReport(report) && !isClosedStatus(report?.status));
+  }, [apiReports, realtimeReports]);
 
   const renderTriageContent = () => {
     switch (activeTriageItem) {

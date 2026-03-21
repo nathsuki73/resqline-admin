@@ -65,8 +65,8 @@ export default function ResponderDashboard() {
           <div
             className={`overflow-hidden transition-all ${
               isHeaderVisible
-                ? "max-h-96 translate-y-0 opacity-100"
-                : "pointer-events-none max-h-0 -translate-y-3 opacity-0"
+                ? "max-h-96 opacity-100"
+                : "pointer-events-none max-h-0 opacity-0"
             }`}
             style={headerTransitionStyle}
           >

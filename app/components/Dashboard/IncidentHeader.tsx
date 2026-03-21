@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Send,
@@ -352,17 +353,20 @@ const RejectIncidentModal = ({
   const { shouldRender, isVisible } = useModalDissolve(isOpen, MODAL_EXIT_MS);
 
   if (!shouldRender) return null;
+  if (typeof window === "undefined") return null;
 
-  return (
+  const modalContent = (
     <div
       className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 p-4 ${
         isVisible ? "is-open" : "is-closed"
       }`}
+      onClick={onCancel}
     >
       <div
         className={`modal-card-dissolve w-full max-w-sm rounded-2xl border border-(--color-border-1) bg-(--color-surface-1) p-5 shadow-xl ${
           isVisible ? "is-open" : "is-closed"
         }`}
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -407,6 +411,8 @@ const RejectIncidentModal = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default IncidentHeader;
