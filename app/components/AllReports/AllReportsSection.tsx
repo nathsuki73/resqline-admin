@@ -28,6 +28,8 @@ import {
 	type BridgeIncident,
 	type BridgeNoteUpdate,
 } from "../Dashboard/incidentBridge";
+import { useReports } from "@/app/hooks/useReports";
+import { fetchReportById, updateReportStatus } from "@/app/services/reports";
 
 const MODAL_EXIT_MS = 260;
 
@@ -50,7 +52,7 @@ type IncidentReport = {
 	internalNote: string;
 };
 
-type SortKey = "id" | "incidentType" | "location" | "reporter" | "department" | "severity" | "status" | "time";
+	type SortKey = "id" | "incidentType" | "location" | "reporter" | "department" | "status" | "time";
 type SortDirection = "asc" | "desc";
 
 type SortState = {
@@ -59,121 +61,6 @@ type SortState = {
 };
 
 const REPORTS_PER_PAGE = 8;
-
-const INITIAL_REPORTS: IncidentReport[] = [
-	{
-		id: "0441",
-		incidentType: "Structure Fire - 3-Storey Bldg",
-		location: "Brgy. Pag-asa, QC",
-		reporter: "Maria Santos",
-		reporterContact: "+63 917 123 4567",
-		department: "bfp",
-		severity: "critical",
-		status: "under-review",
-		time: "2:41 PM",
-		dateISO: "2026-03-18T14:41:00+08:00",
-		reporterDescription: "May sunog sa ikalawang palapag, makapal ang usok at may mga taong hindi pa nakakalabas.",
-		internalNote: "Units BFP-QC-3 and BFP-QC-7 notified. ETA approximately 8 minutes.",
-	},
-	{
-		id: "0440",
-		incidentType: "Major Road Accident - Multi-Vehicle",
-		location: "Commonwealth Ave, QC",
-		reporter: "Jose Reyes",
-		reporterContact: "+63 917 222 0111",
-		department: "ctmo",
-		severity: "critical",
-		status: "submitted",
-		time: "2:39 PM",
-		dateISO: "2026-03-18T14:39:00+08:00",
-		reporterDescription: "Tatlong sasakyan ang nagbanggaan. Isang lane lang ang passable ngayon.",
-		internalNote: "CTMO dispatch escalation requested, ambulance coordination ongoing.",
-	},
-	{
-		id: "0439",
-		incidentType: "Grass Fire - Vacant Lot",
-		location: "Batasan Hills, QC",
-		reporter: "Carlos dela Cruz",
-		reporterContact: "+63 917 333 1020",
-		department: "bfp",
-		severity: "high",
-		status: "in-progress",
-		time: "2:28 PM",
-		dateISO: "2026-03-18T14:28:00+08:00",
-		reporterDescription: "Nagsimula ang apoy sa damuhan, malapit sa bakanteng lote at poste ng kuryente.",
-		internalNote: "Containment perimeter established. Monitoring wind direction.",
-	},
-	{
-		id: "0438",
-		incidentType: "Street Flooding - Knee-Deep Water",
-		location: "Fairview, QC",
-		reporter: "Ana Ramos",
-		reporterContact: "+63 917 987 1100",
-		department: "pdrmo",
-		severity: "medium",
-		status: "under-review",
-		time: "2:15 PM",
-		dateISO: "2026-03-18T14:15:00+08:00",
-		reporterDescription: "Lumalim ang baha hanggang tuhod at mabagal na ang daloy ng sasakyan.",
-		internalNote: "PDRRMO assessment requested for drainage obstruction.",
-	},
-	{
-		id: "0437",
-		incidentType: "Suspicious Activity - Armed Individual",
-		location: "Diliman, QC",
-		reporter: "Ricardo Santos",
-		reporterContact: "+63 917 661 0099",
-		department: "pnp",
-		severity: "low",
-		status: "submitted",
-		time: "1:58 PM",
-		dateISO: "2026-03-18T13:58:00+08:00",
-		reporterDescription: "May armadong lalaki umano sa gilid ng kalsada, nagdudulot ng takot sa mga dumaraan.",
-		internalNote: "PNP patrol route adjusted for immediate area sweep.",
-	},
-	{
-		id: "0436",
-		incidentType: "Minor Fender Bender - EDSA",
-		location: "EDSA-Bansalangin, QC",
-		reporter: "Lito Bautista",
-		reporterContact: "+63 917 440 2201",
-		department: "ctmo",
-		severity: "medium",
-		status: "resolved",
-		time: "1:44 PM",
-		dateISO: "2026-03-18T13:44:00+08:00",
-		reporterDescription: "Minor collision lang, pero nagsisikip ang traffic dahil nasa gitna pa ang mga sasakyan.",
-		internalNote: "Cleared at 1:44 PM. Traffic flow resumed.",
-	},
-	{
-		id: "0435",
-		incidentType: "Power Line Down - Hazard",
-		location: "Novaliches, QC",
-		reporter: "Grace Villanueva",
-		reporterContact: "+63 917 510 7712",
-		department: "pdrmo",
-		severity: "high",
-		status: "in-progress",
-		time: "1:30 PM",
-		dateISO: "2026-03-18T13:30:00+08:00",
-		reporterDescription: "May kable na bumagsak at kumikislap malapit sa gate ng subdivision.",
-		internalNote: "Safety perimeter set. Utility team ETA requested.",
-	},
-	{
-		id: "0434",
-		incidentType: "Residential Fire - Townhouse",
-		location: "Cubao, QC",
-		reporter: "Maricel Ocampo",
-		reporterContact: "+63 917 120 3300",
-		department: "bfp",
-		severity: "high",
-		status: "resolved",
-		time: "12:55 PM",
-		dateISO: "2026-03-18T12:55:00+08:00",
-		reporterDescription: "May usok at apoy sa kusina ng townhouse pero mabilis na narespondehan.",
-		internalNote: "Resolved with no casualties. Occupants accounted for.",
-	},
-];
 
 const severityRank: Record<IncidentSeverity, number> = {
 	critical: 4,
@@ -192,7 +79,7 @@ const statusRank: Record<IncidentStatus, number> = {
 const statusLabel: Record<IncidentStatus, string> = {
 	"under-review": "Under Review",
 	submitted: "Submitted",
-	"in-progress": "In Progress",
+	"in-progress": "Dispatched",
 	resolved: "Resolved",
 };
 
@@ -405,13 +292,6 @@ const getStatusClasses = (status: IncidentStatus) => {
 	return "border-[var(--color-green-border)] bg-[var(--color-green-glow)] text-[var(--color-text-green)]";
 };
 
-const getSeverityClasses = (severity: IncidentSeverity) => {
-	if (severity === "critical") return "text-[var(--color-text-red)]";
-	if (severity === "high") return "text-[var(--color-orange)]";
-	if (severity === "medium") return "text-[var(--color-amber)]";
-	return "text-[var(--color-text-blue)]";
-};
-
 const getDepartmentClasses = (department: IncidentDepartment) => {
 	if (department === "bfp") return "border-[var(--color-orange-border)] bg-[var(--color-orange-glow)] text-[var(--color-orange)]";
 	if (department === "ctmo") return "border-[var(--color-amber-border)] bg-[var(--color-amber-glow)] text-[var(--color-text-amber)]";
@@ -419,15 +299,56 @@ const getDepartmentClasses = (department: IncidentDepartment) => {
 	return "border-[var(--color-purple-border)] bg-[var(--color-purple-glow)] text-[var(--color-text-purple)]";
 };
 
+const mapApiStatusToIncidentStatus = (status: unknown): IncidentStatus => {
+	if (status === 1 || status === "submitted") return "submitted";
+	if (status === 2 || status === "under-review" || status === "in-progress") return "in-progress";
+	if (status === 3 || status === "resolved") return "resolved";
+	return "under-review";
+};
+
+const mapIncidentStatusToApiStatus = (status: IncidentStatus): number => {
+	if (status === "submitted") return 1;
+	if (status === "resolved") return 3;
+	return 2;
+};
+
+const mapCategoryToDepartment = (category: unknown): IncidentDepartment => {
+	if (category === 3) return "bfp";
+	if (category === 2) return "ctmo";
+	if (category === 5) return "pnp";
+	return "pdrmo";
+};
+
+const mapApiReportToIncidentReport = (report: any): IncidentReport => {
+	const rawDate = report.createdAt || report.dateCreated || new Date().toISOString();
+	const lat = report.reportedAt?.latitude || report.location?.latitude;
+	const lon = report.reportedAt?.longitude || report.location?.longitude;
+	const geoCode = report.reportedAt?.reverseGeoCode || report.location?.reverseGeoCode;
+	const location = geoCode ?? (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
+
+	const status = mapApiStatusToIncidentStatus(report.status);
+	const severity: IncidentSeverity = status === "resolved" ? "medium" : status === "submitted" ? "critical" : "high";
+
+	return {
+		id: String(report.id ?? ""),
+		incidentType: report.description || "General Incident",
+		location,
+		reporter: report.reportByName || report.reportedBy?.name || "Unknown",
+		reporterContact: report.reportByPhoneNumber || report.reportedBy?.phoneNumber || "No contact provided",
+		department: mapCategoryToDepartment(report.category),
+		severity,
+		status,
+		time: new Date(rawDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+		dateISO: rawDate,
+		reporterDescription: report.description || "",
+		internalNote: report.internalNote || "",
+	};
+};
+
 export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard?: () => void }) {
-	const [reports, setReports] = useState<IncidentReport[]>(() =>
-		INITIAL_REPORTS.map((report) => {
-			const syncedNote = getIncidentNoteForId(report.id);
-			return syncedNote === null ? report : { ...report, internalNote: syncedNote };
-		})
-	);
+	const { reports: apiReports, loading: reportsLoading, mutate } = useReports();
+	const [reports, setReports] = useState<IncidentReport[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
-	const [severityFilter, setSeverityFilter] = useState<"all" | IncidentSeverity>("all");
 	const [statusFilter, setStatusFilter] = useState<"all" | IncidentStatus>("all");
 	const [departmentFilter, setDepartmentFilter] = useState<"all" | IncidentDepartment>("all");
 	const [sortState, setSortState] = useState<SortState>({ key: "time", direction: "desc" });
@@ -438,6 +359,18 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 	const [isGenerateOpen, setIsGenerateOpen] = useState(false);
 	const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 	const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+	const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+	useEffect(() => {
+		const mapped = Array.isArray(apiReports) ? apiReports.map(mapApiReportToIncidentReport) : [];
+
+		setReports(
+			mapped.map((report) => {
+				const syncedNote = getIncidentNoteForId(report.id);
+				return syncedNote === null ? report : { ...report, internalNote: syncedNote };
+			})
+		);
+	}, [apiReports]);
 
 	const reportInFocus = useMemo(
 		() => reports.find((report) => report.id === activeReportId) ?? null,
@@ -493,13 +426,12 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 				report.location.toLowerCase().includes(normalizedSearch) ||
 				report.incidentType.toLowerCase().includes(normalizedSearch);
 
-			const matchesSeverity = severityFilter === "all" || report.severity === severityFilter;
 			const matchesStatus = statusFilter === "all" || report.status === statusFilter;
 			const matchesDepartment = departmentFilter === "all" || report.department === departmentFilter;
 
-			return matchesSearch && matchesSeverity && matchesStatus && matchesDepartment;
+			return matchesSearch && matchesStatus && matchesDepartment;
 		});
-	}, [reports, searchQuery, severityFilter, statusFilter, departmentFilter]);
+	}, [reports, searchQuery, statusFilter, departmentFilter]);
 
 	const sortedReports = useMemo(() => {
 		const next = [...filteredReports];
@@ -512,7 +444,6 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 			if (sortState.key === "location") comparison = a.location.localeCompare(b.location);
 			if (sortState.key === "reporter") comparison = a.reporter.localeCompare(b.reporter);
 			if (sortState.key === "department") comparison = departmentLabel[a.department].localeCompare(departmentLabel[b.department]);
-			if (sortState.key === "severity") comparison = severityRank[a.severity] - severityRank[b.severity];
 			if (sortState.key === "status") comparison = statusRank[a.status] - statusRank[b.status];
 			if (sortState.key === "time") comparison = getTimeValue(a.dateISO) - getTimeValue(b.dateISO);
 
@@ -538,21 +469,19 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 
 	const clearFilters = () => {
 		setSearchQuery("");
-		setSeverityFilter("all");
 		setStatusFilter("all");
 		setDepartmentFilter("all");
 		setCurrentPage(1);
 	};
 
 	const exportCsv = () => {
-		const header = ["ID", "Incident Type", "Location", "Reporter", "Department", "Severity", "Status", "Time"];
+		const header = ["ID", "Incident Type", "Location", "Reporter", "Department", "Status", "Time"];
 		const rows = sortedReports.map((report) => [
 			report.id,
 			report.incidentType,
 			report.location,
 			report.reporter,
 			departmentLabel[report.department],
-			severityLabel[report.severity],
 			statusLabel[report.status],
 			report.time,
 		]);
@@ -572,21 +501,39 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		URL.revokeObjectURL(url);
 	};
 
-	const openReportDetails = (reportId: string) => {
+	const openReportDetails = async (reportId: string) => {
 		setActiveReportId(reportId);
 		setNoteSaveStateByReportId((prev) => ({ ...prev, [reportId]: prev[reportId] ?? "saved" }));
+
+		try {
+			const fullData = await fetchReportById(reportId);
+			const fullReport = mapApiReportToIncidentReport(fullData);
+			setReports((prev) => prev.map((report) => (report.id === reportId ? { ...report, ...fullReport } : report)));
+		} catch (error) {
+			console.error("Failed to fetch report details:", error);
+		}
 	};
 
 	const closeReportDetails = () => {
 		setActiveReportId(null);
 	};
 
-	const updateFocusedReportStatus = (nextStatus: IncidentStatus) => {
+	const updateFocusedReportStatus = async (nextStatus: IncidentStatus) => {
 		if (!activeReportId) return;
 
+		setIsUpdatingStatus(true);
 		setReports((prev) =>
 			prev.map((report) => (report.id === activeReportId ? { ...report, status: nextStatus } : report))
 		);
+
+		try {
+			await updateReportStatus(activeReportId, mapIncidentStatusToApiStatus(nextStatus));
+			await mutate();
+		} catch (error) {
+			console.error("Failed to update report status:", error);
+		} finally {
+			setIsUpdatingStatus(false);
+		}
 	};
 
 	const updateFocusedReportInternalNoteDraft = (nextNote: string) => {
@@ -629,8 +576,21 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		setActiveIncident(incident);
 	};
 
-	const triggerDashboardAction = (action: BridgeActionType) => {
+	const triggerDashboardAction = async (action: BridgeActionType) => {
 		if (!reportInFocus) return;
+
+		if (action === "reject") {
+			setIsUpdatingStatus(true);
+			try {
+				await updateReportStatus(reportInFocus.id, 4);
+				await mutate();
+			} catch (error) {
+				console.error("Failed to reject report:", error);
+			} finally {
+				setIsUpdatingStatus(false);
+			}
+		}
+
 		syncActiveIncidentToDashboard(reportInFocus);
 		queueIncidentAction(action);
 		onOpenDashboard?.();
@@ -645,9 +605,9 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		setIsDispatchModalOpen(true);
 	};
 
-	const handleDispatchFromAllReports = (selectedUnitIds: string[], note: string) => {
+	const handleDispatchFromAllReports = async (selectedUnitIds: string[], note: string) => {
 		if (!reportInFocus) return;
-		// TODO: Wire to API: dispatch selected units for reportInFocus.id from All Reports context
+		setIsUpdatingStatus(true);
 		setReports((prev) =>
 			prev.map((report) =>
 				report.id === reportInFocus.id
@@ -659,6 +619,16 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 					: report
 			)
 		);
+
+		try {
+			await updateReportStatus(reportInFocus.id, 2);
+			await mutate();
+		} catch (error) {
+			console.error("Failed to dispatch report:", error);
+		} finally {
+			setIsUpdatingStatus(false);
+		}
+
 		queueIncidentAction("dispatch");
 		setIsDispatchModalOpen(false);
 		if (activeReportId) {
@@ -731,24 +701,6 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 
 						<div className="relative">
 							<select
-								value={severityFilter}
-								onChange={(e) => {
-									setSeverityFilter(e.target.value as typeof severityFilter);
-									setCurrentPage(1);
-								}}
-								className="h-9 min-w-32.5 appearance-none rounded-lg border border-(--color-border-2) bg-(--color-surface-2) px-3 pr-7 text-sm text-(--color-text-2) focus:border-(--color-orange-border) focus:outline-none"
-							>
-								<option value="all">All Severity</option>
-								<option value="critical">Critical</option>
-								<option value="high">High</option>
-								<option value="medium">Medium</option>
-								<option value="low">Low</option>
-							</select>
-							<ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-(--color-text-4)" />
-						</div>
-
-						<div className="relative">
-							<select
 								value={statusFilter}
 								onChange={(e) => {
 									setStatusFilter(e.target.value as typeof statusFilter);
@@ -757,9 +709,9 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 								className="h-9 min-w-32.5 appearance-none rounded-lg border border-(--color-border-2) bg-(--color-surface-2) px-3 pr-7 text-sm text-(--color-text-2) focus:border-(--color-orange-border) focus:outline-none"
 							>
 								<option value="all">All Status</option>
-								<option value="under-review">Under Review</option>
 								<option value="submitted">Submitted</option>
-								<option value="in-progress">In Progress</option>
+								<option value="under-review">Under Review</option>
+								<option value="in-progress">Dispatched</option>
 								<option value="resolved">Resolved</option>
 							</select>
 							<ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-(--color-text-4)" />
@@ -789,7 +741,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 					</div>
 
 					<div className="flex items-center justify-end border-b border-(--color-border-1) px-3 py-2 text-xs text-(--color-text-3)">
-						Showing {paginatedReports.length} of {sortedReports.length} reports
+						{reportsLoading ? "Loading reports..." : `Showing ${paginatedReports.length} of ${sortedReports.length} reports`}
 					</div>
 
 					<div className="flex min-h-0 flex-1 overflow-hidden">
@@ -802,7 +754,6 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 									<TableHeader label="Location" sortKey="location" activeSort={sortState} onSort={setSort} />
 									<TableHeader label="Reporter" sortKey="reporter" activeSort={sortState} onSort={setSort} />
 									<TableHeader label="Dept" sortKey="department" activeSort={sortState} onSort={setSort} />
-									<TableHeader label="Severity" sortKey="severity" activeSort={sortState} onSort={setSort} />
 									<TableHeader label="Status" sortKey="status" activeSort={sortState} onSort={setSort} />
 									<TableHeader label="Time" sortKey="time" activeSort={sortState} onSort={setSort} />
 									<th className="border-b border-(--color-border-1) px-3 py-2 text-right text-[10px] font-bold uppercase tracking-widest text-(--color-text-3)">
@@ -813,7 +764,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 							<tbody>
 								{paginatedReports.length === 0 ? (
 									<tr>
-										<td colSpan={9} className="px-4 py-10 text-center">
+										<td colSpan={8} className="px-4 py-10 text-center">
 											<p className="text-sm font-semibold text-(--color-text-2)">No reports found</p>
 											<p className="mt-1 text-xs text-(--color-text-3)">Adjust filters or search keywords to continue.</p>
 										</td>
@@ -832,12 +783,6 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 													)}`}
 												>
 													{departmentLabel[report.department]}
-												</span>
-											</td>
-											<td className="px-3 py-2.5">
-												<span className={`inline-flex items-center gap-1 text-sm font-semibold ${getSeverityClasses(report.severity)}`}>
-													<span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-													{severityLabel[report.severity]}
 												</span>
 											</td>
 											<td className="px-3 py-2.5">
@@ -942,11 +887,12 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 												<select
 													value={reportInFocus.status}
 													onChange={(e) => updateFocusedReportStatus(e.target.value as IncidentStatus)}
+													disabled={isUpdatingStatus}
 													className="h-9 w-full appearance-none rounded-lg border border-(--color-border-2) bg-(--color-surface-2) px-3 pr-7 text-sm text-(--color-text-2) focus:border-(--color-orange-border) focus:outline-none"
 												>
-													<option value="under-review">Under Review</option>
 													<option value="submitted">Submitted</option>
-													<option value="in-progress">In Progress</option>
+													<option value="under-review">Under Review</option>
+													<option value="in-progress">Dispatched</option>
 													<option value="resolved">Resolved</option>
 												</select>
 												<ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-(--color-text-4)" />
