@@ -9,6 +9,8 @@ export type BridgeIncident = {
   id: string;
   incidentType: string;
   location: string;
+  latitude?: number;
+  longitude?: number;
   reporter: string;
   reporterContact?: string;
   department: BridgeIncidentDepartment;

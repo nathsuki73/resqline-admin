@@ -1,9 +1,10 @@
 "use client";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/mapbox";
-import { MapPin, ExternalLink, Loader2 } from "lucide-react";
+import { MapPin, Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
 import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
+import type { BridgeIncident } from "./incidentBridge";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 interface IncidentMarker {
@@ -12,15 +13,52 @@ interface IncidentMarker {
   lng: number;
   label: string;
   type: "SOS" | "Fire" | "Flood";
+  incident: BridgeIncident;
 }
 
-const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
+const mapStatusToSlug = (status: unknown): BridgeIncident["status"] => {
+  if (status === 1 || status === "submitted") return "submitted";
+  if (status === 2 || status === "in-progress" || status === "under-review") {
+    return "in-progress";
+  }
+  if (status === 3 || status === "resolved") return "resolved";
+  return "under-review";
+};
+
+const mapCategoryToDepartment = (category: unknown): BridgeIncident["department"] => {
+  if (category === 3) return "BFP";
+  if (category === 2) return "CTMO";
+  if (category === 5) return "PNP";
+  return "PDRRMO";
+};
+
+const mapCategoryToSeverity = (category: unknown): BridgeIncident["severity"] => {
+  if (category === 3 || category === 1) return "Critical";
+  if (category === 2 || category === 4) return "High";
+  return "Medium";
+};
+
+const getMarkerType = (cat: number): "SOS" | "Fire" | "Flood" => {
+  if (cat === 3) return "Fire";
+  if (cat === 4) return "Flood";
+  return "SOS";
+};
+
+const IncidentMap: React.FC<{
+  onOpenFullMap?: () => void;
+  onIncidentSelect?: (incident: BridgeIncident) => void;
+  refreshToken?: number;
+  onRefreshComplete?: () => void;
+}> = ({
   onOpenFullMap,
+  onIncidentSelect,
+  refreshToken = 0,
+  onRefreshComplete,
 }) => {
   const mapRef = useRef<MapRef | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const { reports: apiReports, loading: apiLoading } = useReports();
+  const { reports: apiReports, loading: apiLoading, mutate: reloadReports } = useReports();
   const { reports: realtimeReports } = useRealtimeReports();
 
   const [viewState, setViewState] = useState({
@@ -40,19 +78,48 @@ const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
         // Use the exact same path TriageFeed uses: r.location?.latitude
         const lat = parseFloat(r.location?.latitude ?? r.latitude ?? r.lat);
         const lng = parseFloat(r.location?.longitude ?? r.longitude ?? r.lng);
-
-        const getMarkerType = (cat: number): "SOS" | "Fire" | "Flood" => {
-          if (cat === 3) return "Fire";
-          if (cat === 4) return "Flood";
-          return "SOS";
-        };
+        const geoCode =
+          r.reportedAt?.reverseGeoCode || r.location?.reverseGeoCode;
+        const locationString =
+          geoCode ??
+          (Number.isFinite(lat) && Number.isFinite(lng)
+            ? `Lat ${lat}, Lon ${lng}`
+            : "Unknown Location");
+        const rawDate = r.createdAt || r.dateCreated;
+        const incidentCategoryName = getMarkerType(r.category);
 
         return {
           id: r.id || r._id || Math.random().toString(),
           lat,
           lng,
           label: r.description || "Active Incident",
-          type: getMarkerType(r.category),
+          type: incidentCategoryName,
+          incident: {
+            id: String(r.id || r._id || ""),
+            incidentType: r.description || "General Incident",
+            location: locationString,
+            latitude: Number.isFinite(lat) ? lat : undefined,
+            longitude: Number.isFinite(lng) ? lng : undefined,
+            reporter: r.reportByName || r.reportedBy?.name || "Unknown",
+            reporterContact:
+              r.reportByPhoneNumber ||
+              r.reportedBy?.phoneNumber ||
+              "No contact provided",
+            department: mapCategoryToDepartment(r.category),
+            severity: mapCategoryToSeverity(r.category),
+            status: mapStatusToSlug(r.status),
+            time: rawDate
+              ? new Date(rawDate).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "N/A",
+            reporterDescription: r.description || "",
+            internalNote: r.internalNote || "",
+            aiAnalysis: r.aiProbabilities || {},
+            images: r.image || r.images || [],
+            type: incidentCategoryName.toUpperCase(),
+          },
         };
       })
       .filter((inc) => {
@@ -111,6 +178,26 @@ const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (refreshToken === 0) return;
+
+    setViewState({
+      longitude: 121.0287,
+      latitude: 14.6574,
+      zoom: 13,
+    });
+
+    const refreshData = async () => {
+      try {
+        await reloadReports();
+      } finally {
+        onRefreshComplete?.();
+      }
+    };
+
+    void refreshData();
+  }, [refreshToken, reloadReports, onRefreshComplete]);
+
   return (
     <div
       ref={containerRef}
@@ -152,7 +239,11 @@ const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
             longitude={incident.lng}
             anchor="bottom"
           >
-            <div className="flex flex-col items-center group cursor-pointer">
+            <button
+              type="button"
+              onClick={() => onIncidentSelect?.(incident.incident)}
+              className="group flex cursor-pointer flex-col items-center"
+            >
               <div
                 className={`relative h-5 w-5 rounded-full ring-4 shadow-xl border-2 border-white/20 ${getMarkerColor(incident.type)}`}
               >
@@ -163,7 +254,7 @@ const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
               <div className="mt-2 whitespace-nowrap rounded border border-(--color-border-1) bg-black/90 px-2 py-1 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                 {incident.label}
               </div>
-            </div>
+            </button>
           </Marker>
         ))}
       </Map>

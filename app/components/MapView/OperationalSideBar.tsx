@@ -1,95 +1,156 @@
 import React from "react";
-import { Phone, MapPin, X, Send, Eye } from "lucide-react";
+import { MapPin, X, Send, Eye } from "lucide-react";
+import type { BridgeIncident } from "../Dashboard/incidentBridge";
+import Map, { Marker } from "react-map-gl/mapbox";
 
-const OperationalSidebar = ({ onClose }: { onClose: () => void }) => {
+const ICON_SIZE = 14;
+
+const OperationalSidebar = ({
+  incident,
+  onClose,
+  onViewFullDetail,
+  onDispatch,
+}: {
+  incident: BridgeIncident | null;
+  onClose: () => void;
+  onViewFullDetail: () => void;
+  onDispatch: () => void;
+}) => {
+  if (!incident) return null;
+
+  const initials = incident.reporter
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
+  const parseCoordinatesFromLocation = (value: string) => {
+    const match = value.match(/Lat\s*(-?\d+(?:\.\d+)?)\s*,\s*Lon\s*(-?\d+(?:\.\d+)?)/i);
+    if (!match) return null;
+    return {
+      latitude: Number.parseFloat(match[1]),
+      longitude: Number.parseFloat(match[2]),
+    };
+  };
+
+  const parsedCoords = parseCoordinatesFromLocation(incident.location);
+  const markerLatitude = incident.latitude ?? parsedCoords?.latitude ?? 14.6574;
+  const markerLongitude = incident.longitude ?? parsedCoords?.longitude ?? 121.0287;
+  const markerTypeSource = `${incident.type ?? ""} ${incident.incidentType ?? ""}`.toLowerCase();
+  const markerColorClass = markerTypeSource.includes("fire")
+    ? "bg-(--color-orange) ring-(--color-orange-border)"
+    : markerTypeSource.includes("flood")
+      ? "bg-(--color-blue) ring-(--color-blue-border)"
+      : "bg-(--color-red) ring-(--color-red-border)";
+  const shouldPulse = !(markerTypeSource.includes("fire") || markerTypeSource.includes("flood"));
+
   return (
-    <div className="absolute top-4 right-4 bottom-4 w-80 z-20 bg-[#121212]/95 backdrop-blur-md border border-gray-800 rounded-xl flex flex-col overflow-hidden shadow-2xl">
+    <aside
+      className="flex h-full w-92.5 flex-col overflow-hidden bg-(--color-surface-1) text-(--color-text-2)"
+    >
       {/* Header */}
-      <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/20">
-        <div className="flex items-center gap-2 text-orange-500">
-          <MapPin size={16} />
-          <h2 className="text-sm font-bold truncate">
-            Structure Fire — 3-Storey Bldg
+      <div className="flex items-start justify-between border-b border-(--color-border-1) bg-(--color-surface-1) p-4">
+        <div className="flex min-w-0 flex-1 items-start gap-2 text-(--color-orange)">
+          <MapPin size={ICON_SIZE} className="mt-0.5 shrink-0 flex-none" />
+          <h2 className="text-sm font-bold leading-tight text-(--color-text-1) whitespace-normal wrap-break-word">
+            {incident.incidentType}
           </h2>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="text-gray-500 hover:text-white cursor-pointer"
+          className="ml-3 mt-0.5 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-(--color-border-2) bg-(--color-surface-2) text-(--color-text-3) transition-colors hover:text-(--color-text-1)"
         >
-          <X size={18} />
+          <X size={ICON_SIZE} />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
         {/* Mini Map Preview Area */}
-        <div className="aspect-video bg-[#0a0a0a] rounded-lg border border-gray-800 mb-6 flex items-center justify-center relative">
-          <div className="h-10 w-10 rounded-full border-2 border-red-500 flex items-center justify-center">
-            <div className="h-3 w-3 rounded-full bg-red-500 animate-ping" />
-          </div>
-          <span className="absolute bottom-2 left-2 text-[9px] font-mono text-gray-500">
-            14.6574°N · 121.0287°E
+        <div className="relative mb-6 aspect-video overflow-hidden rounded-lg border border-(--color-border-1) bg-(--color-bg)">
+          <Map
+            longitude={markerLongitude}
+            latitude={markerLatitude}
+            zoom={15.5}
+            mapStyle="mapbox://styles/mapbox/dark-v11"
+            mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
+            dragPan={false}
+            scrollZoom={false}
+            doubleClickZoom={false}
+            touchZoomRotate={false}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <Marker latitude={markerLatitude} longitude={markerLongitude} anchor="center">
+              <div className={`relative h-4 w-4 rounded-full border-2 border-white/20 ring-3 ${markerColorClass}`}>
+                {shouldPulse && (
+                  <span className="absolute inset-0 animate-ping rounded-full bg-(--color-red) opacity-75" />
+                )}
+              </div>
+            </Marker>
+          </Map>
+          <span className="absolute bottom-2 left-2 text-[9px] font-mono text-(--color-text-3)">
+            {markerLatitude.toFixed(4)}°N · {markerLongitude.toFixed(4)}°E
           </span>
         </div>
 
         {/* Incident Info */}
         <div className="mb-6">
-          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3">
-            Incident
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-(--color-text-4)">
+            Incident Info
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gray-800/30 p-2 rounded border border-gray-800">
-              <p className="text-[8px] text-gray-500 uppercase">Type</p>
-              <p className="text-xs font-bold text-orange-500">
-                Structure Fire
+            <div className="rounded border border-(--color-border-1) bg-(--color-surface-2) p-2">
+              <p className="text-[8px] uppercase text-(--color-text-4)">Type</p>
+              <p className="text-xs font-bold text-(--color-orange)">
+                {incident.type || incident.incidentType}
               </p>
             </div>
-            <div className="bg-gray-800/30 p-2 rounded border border-gray-800">
-              <p className="text-[8px] text-gray-500 uppercase">Severity</p>
-              <p className="text-xs font-bold text-red-500">Critical - SOS</p>
+            <div className="rounded border border-(--color-border-1) bg-(--color-surface-2) p-2">
+              <p className="text-[8px] uppercase text-(--color-text-4)">Department</p>
+              <p className="text-xs font-bold text-(--color-text-2)">{incident.department}</p>
             </div>
-            <div className="bg-gray-800/30 p-2 rounded border border-gray-800">
-              <p className="text-[8px] text-gray-500 uppercase">Department</p>
-              <p className="text-xs font-bold text-gray-300">BFP</p>
-            </div>
-            <div className="bg-gray-800/30 p-2 rounded border border-gray-800">
-              <p className="text-[8px] text-gray-500 uppercase">AI Score</p>
-              <p className="text-xs font-bold text-orange-500">97%</p>
+            <div className="rounded border border-(--color-border-1) bg-(--color-surface-2) p-2">
+              <p className="text-[8px] uppercase text-(--color-text-4)">Reported</p>
+              <p className="text-xs font-bold text-(--color-text-2)">{incident.time} Today</p>
             </div>
           </div>
         </div>
 
         {/* Reporter Info */}
         <div className="mb-6">
-          <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest mb-3">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-(--color-text-4)">
             Reporter
           </p>
-          <div className="flex items-center justify-between bg-gray-800/20 p-3 rounded-lg border border-gray-800">
+          <div className="flex items-center justify-between rounded-lg border border-(--color-border-1) bg-(--color-surface-2) p-3">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-orange-950/40 border border-orange-500/30 flex items-center justify-center text-xs text-orange-500 font-bold">
-                MS
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-orange-border) bg-(--color-orange-glow) text-xs font-bold text-(--color-orange)">
+                {initials || "RD"}
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-200">Maria Santos</p>
-                <p className="text-[10px] text-gray-500">+63 917 123 4567</p>
+                <p className="text-xs font-bold text-(--color-text-1)">{incident.reporter}</p>
+                <p className="text-[10px] text-(--color-text-3)">{incident.reporterContact || "No contact provided"}</p>
               </div>
             </div>
-            <button className="bg-green-900/20 border border-green-700/50 text-green-500 p-1.5 rounded-lg">
+            {/* TODO: Re-enable once direct call workflow and permissions are available.
+            <button type="button" className="rounded-lg border border-(--color-green-border) bg-(--color-green-glow) p-1.5 text-(--color-text-green)">
               <Phone size={14} fill="currentColor" />
             </button>
+            */}
           </div>
         </div>
       </div>
 
       {/* Footer Actions */}
-      <div className="p-4 grid grid-cols-2 gap-2 bg-gray-900/30 border-t border-gray-800">
-        <button className="flex items-center justify-center gap-2 bg-orange-500/10 border border-orange-500/40 text-orange-500 py-2 rounded-lg text-[10px] font-bold uppercase cursor-pointer">
-          <Eye size={14} /> View Full Detail
+      <div className="grid grid-cols-2 gap-2 border-t border-(--color-border-1) bg-(--color-surface-2)/35 p-4">
+        <button type="button" onClick={onViewFullDetail} className="ui-btn ui-btn-secondary w-full rounded-md px-2 py-2 text-[10px] uppercase whitespace-nowrap">
+          <Eye size={ICON_SIZE} /> View Full Detail
         </button>
-        <button className="flex items-center justify-center gap-2 bg-orange-600 text-white py-2 rounded-lg text-[10px] font-bold uppercase cursor-pointer">
-          <Send size={14} /> Dispatch
+        <button type="button" onClick={onDispatch} className="ui-btn ui-btn-primary w-full rounded-md px-2 py-2 text-[10px] uppercase whitespace-nowrap">
+          <Send size={ICON_SIZE} /> Dispatch
         </button>
       </div>
-    </div>
+    </aside>
   );
 };
 
