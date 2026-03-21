@@ -193,11 +193,13 @@ const IncidentDetailPanel = () => {
   };
 
   const initials = incident.reporter
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
+    ? incident.reporter
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("")
+    : "UN"; // "UN" for Unknown
 
   const incidentTypeShort =
     incident.type || // 🟢 Priority 1: The Category (FIRE, CRASH, etc.)
@@ -218,16 +220,11 @@ const IncidentDetailPanel = () => {
                 {incident.reporter}
               </h4>
               <p className="text-xs text-(--color-text-3)">
-                {incident.reporterContact || "No contact provided"}
+                {/* 🟢 Ensure this matches the field mapped in TriageFeed */}
+                {incident.reporterContact}
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) hover:bg-[rgba(67,160,71,0.2)]"
-          >
-            <Phone size={14} fill="currentColor" /> Call Now
-          </button>
         </div>
 
         {/* Incident Info Grid */}

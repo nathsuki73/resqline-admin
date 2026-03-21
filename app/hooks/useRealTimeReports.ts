@@ -11,7 +11,7 @@ export type Report = {
   longitude: number;
   latitude: number;
   confidence: number;
-  status: string;
+  status: string | number; // Updated to handle both string slugs and numeric enums
   timestamp: string;
   is_active: boolean;
 };
@@ -23,8 +23,9 @@ export function useRealtimeReports() {
 
   useEffect(() => {
     isMounted.current = true;
-    const connection = getSignalRConnection(); // Get the singleton instance
+    const connection = getSignalRConnection();
 
+    // 🟢 Listener 1: New Reports
     const handleReportCreated = (report: Report) => {
       if (!isMounted.current) return;
       setReports((prev) => {
@@ -33,25 +34,33 @@ export function useRealtimeReports() {
       });
     };
 
+    // 🟢 Listener 2: Status Updates (Fixes the warning)
+    const handleStatusChanged = (updatedReport: Report) => {
+      if (!isMounted.current) return;
+      console.log("📡 Real-time status update received:", updatedReport);
+
+      setReports((prev) =>
+        prev.map((r) =>
+          r.id === updatedReport.id ? { ...r, ...updatedReport } : r,
+        ),
+      );
+    };
+
     connection.on("reportcreated", handleReportCreated);
+    connection.on("reportstatuschanged", handleStatusChanged);
 
     const startSignalR = async () => {
-      // If already connected, just update status
       if (connection.state === signalR.HubConnectionState.Connected) {
         setConnectionStatus("connected");
         return;
       }
 
-      // If currently connecting, wait a bit then check again
-      if (connection.state === signalR.HubConnectionState.Connecting) {
-        return;
-      }
+      if (connection.state === signalR.HubConnectionState.Connecting) return;
 
       try {
         await connection.start();
         if (isMounted.current) setConnectionStatus("connected");
       } catch (err: any) {
-        // Ignore the specific "stop() called" error as it's a known race condition
         if (isMounted.current && !err.toString().includes("stop()")) {
           setConnectionStatus("error");
         }
@@ -62,8 +71,9 @@ export function useRealtimeReports() {
 
     return () => {
       isMounted.current = false;
-      // 🟢 IMPORTANT: Remove listeners but DON'T stop the connection
+      // 🟢 Clean up both listeners
       connection.off("reportcreated", handleReportCreated);
+      connection.off("reportstatuschanged", handleStatusChanged);
     };
   }, []);
 

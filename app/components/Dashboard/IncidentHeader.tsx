@@ -22,6 +22,8 @@ import DispatchUnitModal, {
   DEFAULT_DEPLOYED_UNITS,
 } from "./DispatchUnitModal";
 import useModalDissolve from "../settings/ui/useModalDissolve";
+import { useReports } from "@/app/hooks/useReports";
+import { updateReportStatus } from "@/app/services/reports";
 
 const MODAL_EXIT_MS = 260;
 
@@ -47,23 +49,54 @@ const IncidentHeader = () => {
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
-  const runAction = (action: BridgeActionType) => {
-    // Keep action side-effects centralized so queue-driven and button-driven actions remain identical.
+  const { mutate } = useReports();
+
+  const runAction = async (action: BridgeActionType) => {
     if (action === "dispatch") {
       setIsDispatchModalOpen(true);
       return;
     }
 
-    // TODO(API): POST /incidents/:id/reject with actor + reason when rejection workflow is finalized.
-    setLastActionMessage(`Report #${incident.id} rejected.`);
+    if (action === "reject") {
+      try {
+        const cleanId = incident.id.replace("RPT-2026-", "");
+        console.log(`🚫 Rejecting RPT-${cleanId}...`);
+
+        // Update backend to Status 4 (Rejected)
+        await updateReportStatus(cleanId, 4);
+
+        // Refresh the global state
+        await mutate();
+
+        setLastActionMessage(`Report #${incident.id} has been rejected.`);
+      } catch (err) {
+        console.error("❌ Failed to reject incident:", err);
+        setLastActionMessage("Error: Failed to reject report.");
+      }
+    }
   };
 
-  const handleDispatchUnits = (selectedUnitIds: string[], _note: string) => {
-    // TODO: Call API to dispatch units
-    // await dispatchUnitsAPI(incident.id, selectedUnitIds, _note);
-    setLastActionMessage(
-      `Dispatch initiated for report #${incident.id}. ${selectedUnitIds.length} unit(s) dispatched.`,
-    );
+  const handleDispatchUnits = async (
+    selectedUnitIds: string[],
+    _note: string,
+  ) => {
+    try {
+      const cleanId = incident.id.replace("RPT-2026-", "");
+      console.log(`🔄 Updating RPT-${cleanId} to In Progress (Code 2)...`);
+
+      await updateReportStatus(cleanId, 2);
+
+      // This is the key: once mutate finishes, the new status 'in-progress'
+      // flows back into the 'incident' state via your useEffect listeners.
+      await mutate();
+
+      setLastActionMessage(
+        `Dispatch initiated for report #${incident.id}. ${selectedUnitIds.length} unit(s) dispatched.`,
+      );
+    } catch (error) {
+      console.error("❌ Failed to update status during dispatch:", error);
+      setLastActionMessage("Error: Failed to update incident status.");
+    }
   };
 
   useEffect(() => {
@@ -105,13 +138,28 @@ const IncidentHeader = () => {
     };
   }, [incident.id]);
 
+  // Inside IncidentHeader.tsx
+  // Inside IncidentHeader.tsx
   const statusStep = useMemo(() => {
     if (!incident) return 0;
-    if (incident.status === "submitted") return 1;
-    if (incident.status === "under-review") return 2;
-    if (incident.status === "in-progress") return 3;
-    if (incident.status === "resolved") return 4;
-    if (incident.status === "rejected") return 5; // New step for Rejected
+
+    const status = incident.status?.toLowerCase();
+
+    // Step 1: Submitted
+    if (status === "submitted") return 1;
+
+    // Step 2: Under Review (Backend status 1)
+    if (status === "under-review") return 2;
+
+    // Step 3: Dispatched (Backend status 2 / Slug "in-progress")
+    if (status === "in-progress" || status === "dispatched") return 3;
+
+    // Step 4: Resolved (Backend status 3)
+    if (status === "resolved") return 4;
+
+    // Step 5: Rejected (Backend status 4)
+    if (status === "rejected") return 5;
+
     return 1;
   }, [incident?.status]);
 

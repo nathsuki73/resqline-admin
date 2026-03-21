@@ -105,7 +105,7 @@ export const FeedItem: React.FC<
           <span
             className={`rounded border px-2 py-0.5 text-[10px] font-bold uppercase ${config.border} ${config.tag}`}
           >
-            {type} · {percentage}
+            {type}
           </span>
           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-(--color-text-blue)">
             <span className="h-1.5 w-1.5 rounded-full bg-(--color-blue)" />

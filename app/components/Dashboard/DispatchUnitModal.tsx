@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Send, Truck, X } from "lucide-react";
 import useModalDissolve from "../settings/ui/useModalDissolve";
 import emailjs from "@emailjs/browser";
+import { updateReportStatus } from "@/app/services/reports";
 
 const MODAL_EXIT_MS = 260;
 
@@ -153,7 +154,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
 
     try {
       const templateParams = {
-        incidentId: incidentId,
+        incidentId: incidentId, // e.g. "RPT-2026-..."
         incidentType: incidentType,
         location: location,
         appUrl: process.env.NEXT_PUBLIC_URL,
@@ -162,7 +163,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
         email: "nathskiiii@gmail.com",
       };
 
-      // 💡 Use process.env here
+      // 1. Send Email
       await emailjs.send(
         process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
         process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
@@ -171,10 +172,20 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
       );
 
       console.log("📧 Dispatch Email Sent");
+
+      // 2. 🟢 Update Backend Status to 'In Progress' (Enum index 2)
+      // Strip "RPT-2026-" if your backend expects the raw UUID
+      const cleanId = incidentId.replace("RPT-2026-", "");
+      await updateReportStatus(cleanId, 2);
+
+      console.log(`✅ Status updated to In Progress for ${cleanId}`);
+
+      // 3. Notify Parent and Close
       onDispatch?.(selectedUnits, dispatchNote.trim());
       onClose();
     } catch (error) {
-      console.error("❌ Email failed:", error);
+      console.error("❌ Dispatch process failed:", error);
+      // Optional: Add a toast notification here
     } finally {
       setIsDispatching(false);
     }
