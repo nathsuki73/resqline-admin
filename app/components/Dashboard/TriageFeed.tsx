@@ -56,7 +56,7 @@ const TriageFeed: React.FC = () => {
     "All" | BridgeIncident["department"]
   >("All");
 
-  const { reports: apiReports, loading } = useReports();
+  const { reports: apiReports, loading, mutate } = useReports();
   const { reports: realtimeReports } = useRealtimeReports();
 
   // Single source of truth for all reports
@@ -125,41 +125,38 @@ const TriageFeed: React.FC = () => {
         );
   }, [liveReportItems, selectedDepartmentFilter]);
 
+  // Inside TriageFeed.tsx
+
   const handleSelectReport = async (item: ReportFeedItem) => {
     setActiveCardId(item.id);
-
-    // 1. Set basic info immediately so the panel isn't blank
     setActiveIncident(item.incident);
 
     try {
-      // 🚀 NEW LOGIC: If status is 'Submitted' (0), move to 'Under Review' (1)
-      // We check item.incident.status which is mapped from r.status
+      // 💡 IMPORTANT: Based on your mapStatus, 1 is 'Submitted'.
+      // To move to 'Under Review', we must send 2.
       if (item.status === "Submitted") {
-        console.log(`🔄 Updating RPT-${item.id} to Under Review...`);
-        await updateReportStatus(item.id, 1);
+        console.log(`🔄 Updating RPT-${item.id} to Under Review (Code 2)...`);
 
-        // Update local item status so the UI reflects the change immediately
-        item.status = "Under Review";
-        item.incident.status = "under-review";
+        await updateReportStatus(item.id, 2); // 🟢 Send '2' for Under Review
+
+        // 🟢 Refresh the feed so the orange "Under Review" badge appears
+        await mutate();
       }
 
-      // 2. Fetch the "Heavy" data (Images, etc)
-      console.log(`📡 Fetching full details for: ${item.id}`);
+      // Fetch full details (images, etc.)
       const fullData = await fetchReportById(item.id);
 
-      // 3. Merge full data
       const fullIncident: BridgeIncident = {
         ...item.incident,
         images: fullData.images || [],
         reporterDescription:
           fullData.description || item.incident.reporterDescription,
-        status: "under-review", // Ensure the bridge reflects the new state
+        status: "under-review",
       };
 
-      // 4. Update the bridge
       setActiveIncident(fullIncident);
     } catch (error) {
-      console.error("Failed to hydrate or update report:", error);
+      console.error("Failed to update report:", error);
     }
   };
   return (

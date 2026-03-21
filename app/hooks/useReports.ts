@@ -1,32 +1,29 @@
-import { useEffect, useState } from "react";
-import { fetchReports } from "../services/reports";
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import { fetchReports } from "@/app/services/reports";
 
-export const useReports = () => {
+export function useReports() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await fetchReports();
-
-        if (Array.isArray(data)) {
-          setReports(data);
-        } else if (data.data) {
-          setReports(data.data);
-        } else {
-          console.warn("Unexpected API shape:", data);
-          setReports([]);
-        }
-      } catch (err) {
-        console.error("Error fetching reports:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+  // 🟢 Create a memoized fetch function
+  const loadReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchReports();
+      setReports(data);
+    } catch (err) {
+      console.error("Error fetching reports:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { reports, loading };
-};
+  // Initial load
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  // 🟢 Export 'mutate' (or 'refresh') so the UI can trigger a reload
+  return { reports, loading, mutate: loadReports };
+}
