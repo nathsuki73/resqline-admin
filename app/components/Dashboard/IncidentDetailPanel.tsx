@@ -200,7 +200,8 @@ const IncidentDetailPanel = () => {
     .join("");
 
   const incidentTypeShort =
-    incident.incidentType.split(" - ")[0] ?? incident.incidentType;
+    incident.type || // 🟢 Priority 1: The Category (FIRE, CRASH, etc.)
+    (incident.incidentType.split(" - ")[0] ?? incident.incidentType); // Fallback
 
   return (
     <div className="flex h-full min-h-0 w-92.5 flex-col overflow-hidden border-r border-(--color-border-1) bg-(--color-surface-1) text-(--color-text-2)">
@@ -234,14 +235,8 @@ const IncidentDetailPanel = () => {
         <div className="mb-6 grid grid-cols-2 gap-3">
           <InfoCard
             label="Type"
-            value={incidentTypeShort}
+            value={incidentTypeShort.toUpperCase()}
             color="text-(--color-orange)"
-          />
-          <InfoCard
-            label="Severity"
-            value={`${incident.severity} · SOS`}
-            color="text-(--color-red)"
-            cardClass="border-(--color-red-border) bg-(--color-red-glow)"
           />
           <InfoCard label="Department" value={incident.department} />
           <InfoCard label="Reported" value={`${incident.time} Today`} />

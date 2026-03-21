@@ -19,6 +19,7 @@ export type BridgeIncident = {
   internalNote?: string;
 
   images?: string[];
+  type?: string;
 };
 
 export type BridgeActionType = "dispatch" | "reject";

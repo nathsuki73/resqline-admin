@@ -68,49 +68,51 @@ const TriageFeed: React.FC = () => {
   // Transform raw reports into Feed Item shape
   const liveReportItems: ReportFeedItem[] = useMemo(
     () =>
-      mergedReports.map((r) => ({
-        id: r.id,
-        title: r.description || "No description",
-        location:
-          r.location?.reverseGeoCode ??
-          `Lat ${r.location?.latitude}, Lon ${r.location?.longitude}`,
-        time: new Date(r.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        type: mapCategoryToType(r.category),
-        percentage: "90%",
-        status: mapStatus(r.status),
-        incident: {
+      mergedReports.map((r) => {
+        const incidentCategoryName = mapCategoryToType(r.category);
+
+        return {
           id: r.id,
-          incidentType: r.description || "General Incident",
-          location: r.location?.reverseGeoCode ?? "Unknown",
-          reporter: "Unknown",
-          reporterContact: "",
-          // Ensure department is typed correctly
-          department: (r.category === 3
-            ? "BFP"
-            : r.category === 2
-              ? "CTMO"
-              : "PDRRMO") as BridgeIncident["department"],
-          // Map severity based on status or category
-          severity: (r.status === 1 ? "Critical" : "Medium") as
-            | "Critical"
-            | "High"
-            | "Medium"
-            | "Low",
-          // Map status to valid BridgeIncident status slugs
-          status: mapStatus(r.status)
-            .toLowerCase()
-            .replace(/\s+/g, "-") as BridgeIncident["status"],
+          title: r.description || "No description",
+          location:
+            r.location?.reverseGeoCode ??
+            `Lat ${r.location?.latitude}, Lon ${r.location?.longitude}`,
           time: new Date(r.createdAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           }),
-          reporterDescription: r.description || "",
-          internalNote: "",
-        },
-      })),
+          type: incidentCategoryName,
+          percentage: "90%",
+          status: mapStatus(r.status),
+          incident: {
+            id: r.id,
+            type: incidentCategoryName, // This now maps "FIRE", "CRASH", etc.
+            incidentType: r.description || "General Incident",
+            location: r.location?.reverseGeoCode ?? "Unknown",
+            reporter: "Unknown",
+            reporterContact: "",
+            department: (r.category === 3
+              ? "BFP"
+              : r.category === 2
+                ? "CTMO"
+                : "PDRRMO") as BridgeIncident["department"],
+            severity: (r.status === 1 ? "Critical" : "Medium") as
+              | "Critical"
+              | "High"
+              | "Medium"
+              | "Low",
+            status: mapStatus(r.status)
+              .toLowerCase()
+              .replace(/\s+/g, "-") as BridgeIncident["status"],
+            time: new Date(r.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            reporterDescription: r.description || "",
+            internalNote: "",
+          },
+        };
+      }),
     [mergedReports],
   );
 
