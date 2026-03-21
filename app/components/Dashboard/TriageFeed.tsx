@@ -1,6 +1,12 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { setActiveIncident, type BridgeIncident } from "./incidentBridge";
+import {
+  getActiveIncident,
+  INCIDENT_CLEARED_EVENT,
+  INCIDENT_SELECTED_EVENT,
+  setActiveIncident,
+  type BridgeIncident,
+} from "./incidentBridge";
 import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 import { useReports } from "@/app/hooks/useReports";
 import { StatBlock } from "./TriageFeedComponents/StatBlock";
@@ -143,6 +149,34 @@ const TriageFeed: React.FC = () => {
           (item) => item.incident.department === selectedDepartmentFilter,
         );
   }, [liveReportItems, selectedDepartmentFilter]);
+
+  useEffect(() => {
+    const selected = getActiveIncident();
+    setActiveCardId(selected?.id ?? null);
+
+    const onIncidentSelected = (event: Event) => {
+      const detail = (event as CustomEvent<BridgeIncident>).detail;
+      setActiveCardId(detail?.id ?? null);
+    };
+
+    const onIncidentCleared = () => {
+      setActiveCardId(null);
+    };
+
+    window.addEventListener(
+      INCIDENT_SELECTED_EVENT,
+      onIncidentSelected as EventListener,
+    );
+    window.addEventListener(INCIDENT_CLEARED_EVENT, onIncidentCleared);
+
+    return () => {
+      window.removeEventListener(
+        INCIDENT_SELECTED_EVENT,
+        onIncidentSelected as EventListener,
+      );
+      window.removeEventListener(INCIDENT_CLEARED_EVENT, onIncidentCleared);
+    };
+  }, []);
 
   // Inside TriageFeed.tsx
 

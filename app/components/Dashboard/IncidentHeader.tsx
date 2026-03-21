@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import {
+  clearActiveIncident,
   consumeQueuedIncidentAction,
   getActiveIncident,
   INCIDENT_ACTION_EVENT,
@@ -43,7 +44,7 @@ const DEFAULT_INCIDENT: BridgeIncident = {
 };
 // TODO(API): Replace fallback with latest selected incident payload from dashboard bootstrap endpoint.
 
-const IncidentHeader = () => {
+const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void }) => {
   const [incident, setIncident] = useState<BridgeIncident>(DEFAULT_INCIDENT);
   const [lastActionMessage, setLastActionMessage] = useState<string>("");
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
@@ -97,6 +98,14 @@ const IncidentHeader = () => {
       console.error("❌ Failed to update status during dispatch:", error);
       setLastActionMessage("Error: Failed to update incident status.");
     }
+  };
+
+  const handleClearSelection = () => {
+    setIsDispatchModalOpen(false);
+    setIsRejectModalOpen(false);
+    setLastActionMessage("");
+    clearActiveIncident();
+    onClearSelection?.();
   };
 
   useEffect(() => {
@@ -194,6 +203,13 @@ const IncidentHeader = () => {
             className="ui-btn border border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red) hover:bg-[rgba(229,57,53,0.2)]"
           >
             Reject
+          </button>
+          <button
+            type="button"
+            onClick={handleClearSelection}
+            className="ui-btn border border-(--color-border-2) bg-(--color-surface-2) text-(--color-text-2) hover:border-(--color-border-1)"
+          >
+            Close
           </button>
         </div>
       </div>

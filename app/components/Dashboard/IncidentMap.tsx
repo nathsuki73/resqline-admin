@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useMemo, useEffect } from "react";
-import Map, { Marker, NavigationControl } from "react-map-gl/mapbox";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/mapbox";
 import { MapPin, ExternalLink, Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
 import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
@@ -17,6 +17,9 @@ interface IncidentMarker {
 const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
   onOpenFullMap,
 }) => {
+  const mapRef = useRef<MapRef | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   const { reports: apiReports, loading: apiLoading } = useReports();
   const { reports: realtimeReports } = useRealtimeReports();
 
@@ -84,8 +87,35 @@ const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
     }
   }, [incidents]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeMap = () => {
+      mapRef.current?.resize();
+    };
+
+    // Run once immediately and once on next frame for layout-transition cases.
+    resizeMap();
+    const rafId = window.requestAnimationFrame(resizeMap);
+
+    const observer = new ResizeObserver(() => {
+      resizeMap();
+    });
+
+    observer.observe(container);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, []);
+
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-xl border border-(--color-border-1) bg-(--color-bg)">
+    <div
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden rounded-xl border border-(--color-border-1) bg-(--color-bg)"
+    >
       {/* Show loader ONLY if we have absolutely no data yet */}
       {apiLoading && incidents.length === 0 && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
@@ -106,6 +136,7 @@ const IncidentMap: React.FC<{ onOpenFullMap?: () => void }> = ({
       </div>
 
       <Map
+        ref={mapRef}
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
         mapStyle="mapbox://styles/mapbox/dark-v11"

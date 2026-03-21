@@ -45,6 +45,7 @@ const NOTES_STORAGE_KEY = "resqline.incidentNotesById";
 // TODO(API): Replace with server-backed state (React Query/SWR + websocket updates) once endpoints are stable.
 
 export const INCIDENT_SELECTED_EVENT = "resqline:incident-selected";
+export const INCIDENT_CLEARED_EVENT = "resqline:incident-cleared";
 export const INCIDENT_ACTION_EVENT = "resqline:incident-action";
 export const INCIDENT_NOTE_UPDATED_EVENT = "resqline:incident-note-updated";
 // Event names are public contracts across Dashboard components. Keep stable to avoid silent desync.
@@ -111,6 +112,13 @@ export const setActiveIncident = (incident: BridgeIncident) => {
   );
 };
 // TODO(API): Persist active incident context in route/query state or global store instead of localStorage.
+
+export const clearActiveIncident = () => {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(INCIDENT_STORAGE_KEY);
+  window.dispatchEvent(new Event(INCIDENT_CLEARED_EVENT));
+};
+// TODO(API): Use a shared store clear action once route/global incident state replaces localStorage bridge.
 
 export const queueIncidentAction = (action: BridgeActionType) => {
   if (typeof window === "undefined") return;

@@ -282,7 +282,7 @@ const IncidentDetailPanel = () => {
             <div className="flex items-center gap-2 text-(--color-text-blue)">
               <BrainCircuit size={16} />
               <span className="text-[11px] font-bold uppercase tracking-wide">
-                Confidence Ranking
+                AI Confidence Ranking
               </span>
             </div>
             <span className="text-[10px] text-(--color-text-3)">
@@ -293,6 +293,7 @@ const IncidentDetailPanel = () => {
           {/* 🟢 Sorting and Rendering Logic */}
           {Object.entries(incident.aiAnalysis || {})
             .sort(([, a], [, b]) => (b as number) - (a as number)) // Sort descending
+            .slice(0, 5)
             .map(([key, value]) => {
               const confidence = Math.round((value as number) * 100);
 
