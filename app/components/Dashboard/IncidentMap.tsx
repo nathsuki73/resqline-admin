@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/mapbox";
-import { MapPin, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
 import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
 import type { BridgeIncident } from "./incidentBridge";
@@ -15,6 +15,13 @@ interface IncidentMarker {
   type: "SOS" | "Fire" | "Flood";
   incident: BridgeIncident;
 }
+
+type IncidentSummary = {
+  total: number;
+  sos: number;
+  fire: number;
+  flood: number;
+};
 
 const mapStatusToSlug = (status: unknown): BridgeIncident["status"] => {
   if (status === 1 || status === "submitted") return "submitted";
@@ -49,14 +56,23 @@ const IncidentMap: React.FC<{
   onIncidentSelect?: (incident: BridgeIncident) => void;
   refreshToken?: number;
   onRefreshComplete?: () => void;
+  searchQuery?: string;
+  departmentFilter?: "All" | BridgeIncident["department"];
+  showIncidentsLayer?: boolean;
+  onSummaryChange?: (summary: IncidentSummary) => void;
 }> = ({
   onOpenFullMap,
   onIncidentSelect,
   refreshToken = 0,
   onRefreshComplete,
+  searchQuery = "",
+  departmentFilter = "All",
+  showIncidentsLayer = true,
+  onSummaryChange,
 }) => {
   const mapRef = useRef<MapRef | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const hasInitialCentered = useRef(false);
 
   const { reports: apiReports, loading: apiLoading, mutate: reloadReports } = useReports();
   const { reports: realtimeReports } = useRealtimeReports();
@@ -139,20 +155,58 @@ const IncidentMap: React.FC<{
     return "bg-(--color-red) ring-(--color-red-border)";
   };
 
-  // Inside your IncidentMap component
+  const filteredIncidents = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    return incidents.filter((incident) => {
+      if (
+        departmentFilter !== "All" &&
+        incident.incident.department !== departmentFilter
+      ) {
+        return false;
+      }
+
+      if (!normalizedSearch) return true;
+
+      const searchTarget = [
+        incident.label,
+        incident.incident.incidentType,
+        incident.incident.location,
+        incident.incident.reporter,
+        incident.incident.department,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchTarget.includes(normalizedSearch);
+    });
+  }, [incidents, searchQuery, departmentFilter]);
+
   useEffect(() => {
-    if (incidents.length > 0 && viewState.latitude === 14.6574) {
-      // If we have data and we are still at the default QC view,
-      // snap to the first incident found.
-      setViewState((prev) => ({
-        ...prev,
-        latitude: incidents[0].lat,
-        longitude: incidents[0].lng,
-        zoom: 14,
-      }));
-      console.log("🎯 Map re-centered to first incident in Dolores");
-    }
-  }, [incidents]);
+    const summary: IncidentSummary = {
+      total: filteredIncidents.length,
+      sos: filteredIncidents.filter((incident) => incident.type === "SOS").length,
+      fire: filteredIncidents.filter((incident) => incident.type === "Fire").length,
+      flood: filteredIncidents.filter((incident) => incident.type === "Flood").length,
+    };
+
+    onSummaryChange?.(summary);
+  }, [filteredIncidents, onSummaryChange]);
+
+  // Auto-center on initial load and refresh, not on search changes
+  useEffect(() => {
+    if (incidents.length === 0) return;
+    if (hasInitialCentered.current && refreshToken === 0) return;
+
+    hasInitialCentered.current = true;
+    setViewState((prev) => ({
+      ...prev,
+      latitude: incidents[0].lat,
+      longitude: incidents[0].lng,
+      zoom: 14,
+    }));
+    console.log("🎯 Map centered on first incident");
+  }, [incidents, refreshToken]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -201,7 +255,7 @@ const IncidentMap: React.FC<{
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden rounded-xl border border-(--color-border-1) bg-(--color-bg)"
+      className="relative h-full w-full overflow-hidden border border-(--color-border-1) bg-(--color-bg)"
     >
       {/* Show loader ONLY if we have absolutely no data yet */}
       {apiLoading && incidents.length === 0 && (
@@ -209,18 +263,6 @@ const IncidentMap: React.FC<{
           <Loader2 className="animate-spin text-(--color-orange)" size={32} />
         </div>
       )}
-
-      <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-linear-to-b from-black/80 to-transparent p-4">
-        <div className="flex items-center gap-2 text-(--color-orange)">
-          <MapPin size={18} />
-          <span className="text-xs font-bold uppercase tracking-widest text-(--color-text-2)">
-            Live Scene Map
-          </span>
-        </div>
-        <div className="px-2 py-1 rounded bg-black/40 text-[10px] font-mono text-(--color-text-3)">
-          {incidents.length} FEED ITEMS MAPPED
-        </div>
-      </div>
 
       <Map
         ref={mapRef}
@@ -232,7 +274,8 @@ const IncidentMap: React.FC<{
       >
         <NavigationControl position="bottom-right" />
 
-        {incidents.map((incident) => (
+        {showIncidentsLayer
+          ? filteredIncidents.map((incident) => (
           <Marker
             key={incident.id}
             latitude={incident.lat}
@@ -256,7 +299,8 @@ const IncidentMap: React.FC<{
               </div>
             </button>
           </Marker>
-        ))}
+            ))
+          : null}
       </Map>
     </div>
   );

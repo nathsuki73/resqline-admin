@@ -22,7 +22,7 @@ const OperationalMapHeader = ({
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-(--color-text-green)">
           <Circle size={8} fill="currentColor" className="animate-pulse" />
-          Real-time
+          Live
         </div>
         <button
           type="button"
