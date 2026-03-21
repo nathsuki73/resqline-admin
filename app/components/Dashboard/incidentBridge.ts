@@ -19,6 +19,17 @@ export type BridgeIncident = {
   internalNote?: string;
 
   images?: string[];
+  type?: string;
+
+  aiAnalysis?: {
+    fire?: number;
+    smoke?: number;
+    flood?: number;
+    injured_person?: number;
+    damaged_structures?: number;
+    normal_scene?: number;
+    traffic_accident?: number;
+  };
 };
 
 export type BridgeActionType = "dispatch" | "reject";

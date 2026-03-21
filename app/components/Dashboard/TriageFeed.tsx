@@ -39,12 +39,13 @@ const mapCategoryToType = (category: number): FeedType => {
   }
 };
 
+// Inside TriageFeed.tsx
 const mapStatus = (status: number): string => {
   const statuses: Record<number, string> = {
     1: "Submitted",
-    2: "Under Review",
-    3: "In Progress",
-    4: "Resolved",
+    2: "In Progress", // 🟢 Change this from "Under Review" to "In Progress"
+    3: "Resolved", // Adjust these based on your C# Enum
+    4: "Rejected",
   };
   return statuses[status] || "Submitted";
 };
@@ -56,7 +57,7 @@ const TriageFeed: React.FC = () => {
     "All" | BridgeIncident["department"]
   >("All");
 
-  const { reports: apiReports, loading } = useReports();
+  const { reports: apiReports, loading, mutate } = useReports();
   const { reports: realtimeReports } = useRealtimeReports();
 
   // Single source of truth for all reports
@@ -65,52 +66,72 @@ const TriageFeed: React.FC = () => {
     [realtimeReports, apiReports],
   );
 
-  // Transform raw reports into Feed Item shape
+  // Transform raw reports into Feed Item shape with SignalR + API compatibility
   const liveReportItems: ReportFeedItem[] = useMemo(
     () =>
-      mergedReports.map((r) => ({
-        id: r.id,
-        title: r.description || "No description",
-        location:
-          r.location?.reverseGeoCode ??
-          `Lat ${r.location?.latitude}, Lon ${r.location?.longitude}`,
-        time: new Date(r.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        type: mapCategoryToType(r.category),
-        percentage: "90%",
-        status: mapStatus(r.status),
-        incident: {
+      mergedReports.map((r) => {
+        const incidentCategoryName = mapCategoryToType(r.category);
+
+        // 🟢 1. Handle Location Fallback (API uses 'location', SignalR uses 'reportedAt')
+        const lat = r.reportedAt?.latitude || r.location?.latitude;
+        const lon = r.reportedAt?.longitude || r.location?.longitude;
+        const geoCode =
+          r.reportedAt?.reverseGeoCode || r.location?.reverseGeoCode;
+        const locationString =
+          geoCode ??
+          (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
+
+        // 🟢 2. Handle Date Fallback (API uses 'createdAt', SignalR uses 'dateCreated')
+        const rawDate = r.createdAt || r.dateCreated;
+        const timeDisplay = rawDate
+          ? new Date(rawDate).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "N/A";
+
+        return {
           id: r.id,
-          incidentType: r.description || "General Incident",
-          location: r.location?.reverseGeoCode ?? "Unknown",
-          reporter: "Unknown",
-          reporterContact: "",
-          // Ensure department is typed correctly
-          department: (r.category === 3
-            ? "BFP"
-            : r.category === 2
-              ? "CTMO"
-              : "PDRRMO") as BridgeIncident["department"],
-          // Map severity based on status or category
-          severity: (r.status === 1 ? "Critical" : "Medium") as
-            | "Critical"
-            | "High"
-            | "Medium"
-            | "Low",
-          // Map status to valid BridgeIncident status slugs
-          status: mapStatus(r.status)
-            .toLowerCase()
-            .replace(/\s+/g, "-") as BridgeIncident["status"],
-          time: new Date(r.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          reporterDescription: r.description || "",
-          internalNote: "",
-        },
-      })),
+          title: r.description || "No description",
+          location: locationString,
+          time: timeDisplay,
+          type: incidentCategoryName,
+          percentage: "90%",
+          status: mapStatus(r.status),
+          incident: {
+            id: r.id,
+            type: incidentCategoryName,
+            incidentType: r.description || "General Incident",
+            location: locationString,
+
+            reporter: r.reportByName || r.reportedBy?.name || "Unknown",
+            reporterContact:
+              r.reportByPhoneNumber ||
+              r.reportedBy?.phoneNumber ||
+              "No contact provided",
+            aiAnalysis: r.aiProbabilities || {},
+            department: (r.category === 3
+              ? "BFP"
+              : r.category === 2
+                ? "CTMO"
+                : "PDRRMO") as BridgeIncident["department"],
+            severity: (r.status === 1 ? "Critical" : "Medium") as
+              | "Critical"
+              | "High"
+              | "Medium"
+              | "Low",
+            // 🟢 Sync status slug for the Header Progress Bar
+            status: mapStatus(r.status)
+              .toLowerCase()
+              .replace(/\s+/g, "-") as BridgeIncident["status"],
+            time: timeDisplay,
+            reporterDescription: r.description || "",
+            internalNote: r.internalNote || "",
+            // 🟢 Handle images (SignalR uses 'image' singular array)
+            images: r.image || r.images || [],
+          },
+        };
+      }),
     [mergedReports],
   );
 
@@ -123,41 +144,44 @@ const TriageFeed: React.FC = () => {
         );
   }, [liveReportItems, selectedDepartmentFilter]);
 
+  // Inside TriageFeed.tsx
+
+  // Inside TriageFeed.tsx -> handleSelectReport
   const handleSelectReport = async (item: ReportFeedItem) => {
     setActiveCardId(item.id);
 
-    // 1. Set basic info immediately so the panel isn't blank
+    // 1. Start with the current state
     setActiveIncident(item.incident);
 
     try {
-      // 🚀 NEW LOGIC: If status is 'Submitted' (0), move to 'Under Review' (1)
-      // We check item.incident.status which is mapped from r.status
-      if (item.status === "Submitted") {
-        console.log(`🔄 Updating RPT-${item.id} to Under Review...`);
-        await updateReportStatus(item.id, 1);
+      let currentStatusSlug = item.incident.status;
 
-        // Update local item status so the UI reflects the change immediately
-        item.status = "Under Review";
-        item.incident.status = "under-review";
+      // Move to 'Under Review' if it's currently 'Submitted'
+      if (item.status === "Submitted") {
+        await updateReportStatus(item.id, 2);
+        currentStatusSlug = "under-review";
+        await mutate(); // Refresh list in background
       }
 
-      // 2. Fetch the "Heavy" data (Images, etc)
-      console.log(`📡 Fetching full details for: ${item.id}`);
+      // 2. Fetch full details
       const fullData = await fetchReportById(item.id);
 
-      // 3. Merge full data
+      // 🟢 THE FIX: Use the LATEST status from the item/server,
+      // but don't let it "go backwards" if we know it's being dispatched.
       const fullIncident: BridgeIncident = {
         ...item.incident,
         images: fullData.images || [],
         reporterDescription:
           fullData.description || item.incident.reporterDescription,
-        status: "under-review", // Ensure the bridge reflects the new state
+        // 🟢 Use the status mapped from fullData to ensure accuracy
+        status: mapStatus(fullData.status)
+          .toLowerCase()
+          .replace(/\s+/g, "-") as BridgeIncident["status"],
       };
 
-      // 4. Update the bridge
       setActiveIncident(fullIncident);
     } catch (error) {
-      console.error("Failed to hydrate or update report:", error);
+      console.error("Failed to update report:", error);
     }
   };
   return (
