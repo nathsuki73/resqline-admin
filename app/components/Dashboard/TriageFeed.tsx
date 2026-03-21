@@ -17,6 +17,13 @@ import {
   mapCategoryCodeToType,
   type IncidentCategoryType,
 } from "@/app/constants/reportCategories";
+import {
+  type IncidentStatusSlug,
+  mapApiStatusToLabel,
+  mapApiStatusToSlug,
+  mapSlugToApiStatus,
+  statusStep,
+} from "@/app/constants/reportStatus";
 
 // --- Types ---
 type FeedType = IncidentCategoryType;
@@ -32,20 +39,12 @@ interface ReportFeedItem {
   incident: BridgeIncident;
 }
 
-// Inside TriageFeed.tsx
-const mapStatus = (status: number): string => {
-  const statuses: Record<number, string> = {
-    1: "Submitted",
-    2: "In Progress", // 🟢 Change this from "Under Review" to "In Progress"
-    3: "Resolved", // Adjust these based on your C# Enum
-    4: "Rejected",
-  };
-  return statuses[status] || "Submitted";
-};
-
 // --- Main Component ---
 const TriageFeed: React.FC = () => {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [statusOverridesById, setStatusOverridesById] = useState<
+    Record<string, IncidentStatusSlug>
+  >({});
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<
     "All" | BridgeIncident["department"]
   >("All");
@@ -90,7 +89,9 @@ const TriageFeed: React.FC = () => {
           time: timeDisplay,
           type: incidentCategoryName,
           percentage: "90%",
-          status: mapStatus(r.status),
+          status: mapApiStatusToLabel(
+            statusOverridesById[r.id] ?? r.status,
+          ),
           incident: {
             id: r.id,
             type: incidentCategoryName,
@@ -112,9 +113,8 @@ const TriageFeed: React.FC = () => {
               | "Medium"
               | "Low",
             // 🟢 Sync status slug for the Header Progress Bar
-            status: mapStatus(r.status)
-              .toLowerCase()
-              .replace(/\s+/g, "-") as BridgeIncident["status"],
+            status: (statusOverridesById[r.id] ??
+              mapApiStatusToSlug(r.status)) as BridgeIncident["status"],
             time: timeDisplay,
             reporterDescription: r.description || "",
             internalNote: r.internalNote || "",
@@ -123,7 +123,7 @@ const TriageFeed: React.FC = () => {
           },
         };
       }),
-    [mergedReports],
+    [mergedReports, statusOverridesById],
   );
 
   // FIXED: Define the missing filteredReportItems variable
@@ -138,10 +138,22 @@ const TriageFeed: React.FC = () => {
   useEffect(() => {
     const selected = getActiveIncident();
     setActiveCardId(selected?.id ?? null);
+    if (selected?.id && selected.status) {
+      setStatusOverridesById((prev) => ({
+        ...prev,
+        [selected.id]: selected.status as IncidentStatusSlug,
+      }));
+    }
 
     const onIncidentSelected = (event: Event) => {
       const detail = (event as CustomEvent<BridgeIncident>).detail;
       setActiveCardId(detail?.id ?? null);
+      if (detail?.id && detail?.status) {
+        setStatusOverridesById((prev) => ({
+          ...prev,
+          [detail.id]: detail.status as IncidentStatusSlug,
+        }));
+      }
     };
 
     const onIncidentCleared = () => {
@@ -173,12 +185,17 @@ const TriageFeed: React.FC = () => {
     setActiveIncident(item.incident);
 
     try {
-      let currentStatusSlug = item.incident.status;
+      let currentStatusSlug = item.incident.status as IncidentStatusSlug;
 
       // Move to 'Under Review' if it's currently 'Submitted'
       if (item.status === "Submitted") {
-        await updateReportStatus(item.id, 2);
+        await updateReportStatus(item.id, mapSlugToApiStatus("under-review"));
         currentStatusSlug = "under-review";
+        setStatusOverridesById((prev) => ({
+          ...prev,
+          [item.id]: currentStatusSlug,
+        }));
+        setActiveIncident({ ...item.incident, status: currentStatusSlug });
         await mutate(); // Refresh list in background
       }
 
@@ -192,12 +209,17 @@ const TriageFeed: React.FC = () => {
         images: fullData.images || [],
         reporterDescription:
           fullData.description || item.incident.reporterDescription,
-        // 🟢 Use the status mapped from fullData to ensure accuracy
-        status: mapStatus(fullData.status)
-          .toLowerCase()
-          .replace(/\s+/g, "-") as BridgeIncident["status"],
+        // Avoid regressions from stale payload by keeping the furthest-known status.
+        status: (statusStep(mapApiStatusToSlug(fullData.status)) <
+        statusStep(currentStatusSlug)
+          ? currentStatusSlug
+          : mapApiStatusToSlug(fullData.status)) as BridgeIncident["status"],
       };
 
+      setStatusOverridesById((prev) => ({
+        ...prev,
+        [item.id]: fullIncident.status as IncidentStatusSlug,
+      }));
       setActiveIncident(fullIncident);
     } catch (error) {
       console.error("Failed to update report:", error);

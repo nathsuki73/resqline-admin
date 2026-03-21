@@ -30,11 +30,18 @@ import {
 } from "../Dashboard/incidentBridge";
 import { useReports } from "@/app/hooks/useReports";
 import { fetchReportById, updateReportStatus } from "@/app/services/reports";
+import {
+	mapApiStatusToLabel,
+	mapApiStatusToSlug,
+	mapSlugToApiStatus,
+	statusStep,
+	type IncidentStatusSlug,
+} from "@/app/constants/reportStatus";
 
 const MODAL_EXIT_MS = 260;
 
 type IncidentSeverity = "critical" | "high" | "medium" | "low";
-type IncidentStatus = "under-review" | "submitted" | "in-progress" | "resolved";
+type IncidentStatus = IncidentStatusSlug;
 type IncidentDepartment = "bfp" | "ctmo" | "pdrmo" | "pnp";
 
 type IncidentReport = {
@@ -70,17 +77,11 @@ const severityRank: Record<IncidentSeverity, number> = {
 };
 
 const statusRank: Record<IncidentStatus, number> = {
-	"under-review": 4,
-	"in-progress": 3,
-	submitted: 2,
-	resolved: 1,
-};
-
-const statusLabel: Record<IncidentStatus, string> = {
-	"under-review": "Under Review",
-	submitted: "Submitted",
-	"in-progress": "Dispatched",
-	resolved: "Resolved",
+	"under-review": statusStep("under-review"),
+	"in-progress": statusStep("in-progress"),
+	submitted: statusStep("submitted"),
+	resolved: statusStep("resolved"),
+	rejected: statusStep("rejected"),
 };
 
 const severityLabel: Record<IncidentSeverity, string> = {
@@ -289,6 +290,7 @@ const getStatusClasses = (status: IncidentStatus) => {
 	if (status === "under-review") return "border-[var(--color-blue-border)] bg-[var(--color-blue-glow)] text-[var(--color-text-blue)]";
 	if (status === "submitted") return "border-[var(--color-border-2)] bg-[var(--color-surface-2)] text-[var(--color-text-3)]";
 	if (status === "in-progress") return "border-[var(--color-orange-border)] bg-[var(--color-orange-glow)] text-[var(--color-orange)]";
+	if (status === "rejected") return "border-[var(--color-red-border)] bg-[var(--color-red-glow)] text-[var(--color-text-red)]";
 	return "border-[var(--color-green-border)] bg-[var(--color-green-glow)] text-[var(--color-text-green)]";
 };
 
@@ -299,18 +301,11 @@ const getDepartmentClasses = (department: IncidentDepartment) => {
 	return "border-[var(--color-purple-border)] bg-[var(--color-purple-glow)] text-[var(--color-text-purple)]";
 };
 
-const mapApiStatusToIncidentStatus = (status: unknown): IncidentStatus => {
-	if (status === 1 || status === "submitted") return "submitted";
-	if (status === 2 || status === "under-review" || status === "in-progress") return "in-progress";
-	if (status === 3 || status === "resolved") return "resolved";
-	return "under-review";
-};
+const mapApiStatusToIncidentStatus = (status: unknown): IncidentStatus =>
+	mapApiStatusToSlug(status);
 
-const mapIncidentStatusToApiStatus = (status: IncidentStatus): number => {
-	if (status === "submitted") return 1;
-	if (status === "resolved") return 3;
-	return 2;
-};
+const mapIncidentStatusToApiStatus = (status: IncidentStatus): number =>
+	mapSlugToApiStatus(status);
 
 const mapCategoryToDepartment = (category: unknown): IncidentDepartment => {
 	if (category === 3) return "bfp";
@@ -482,7 +477,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 			report.location,
 			report.reporter,
 			departmentLabel[report.department],
-			statusLabel[report.status],
+			mapApiStatusToLabel(report.status),
 			report.time,
 		]);
 
@@ -713,6 +708,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 								<option value="under-review">Under Review</option>
 								<option value="in-progress">Dispatched</option>
 								<option value="resolved">Resolved</option>
+								<option value="rejected">Rejected</option>
 							</select>
 							<ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-(--color-text-4)" />
 						</div>
@@ -787,7 +783,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 											</td>
 											<td className="px-3 py-2.5">
 												<span className={`inline-flex rounded-md border px-2 py-1 text-[10px] font-semibold ${getStatusClasses(report.status)}`}>
-													{statusLabel[report.status]}
+													{mapApiStatusToLabel(report.status)}
 												</span>
 											</td>
 											<td className="px-3 py-2.5 text-sm text-(--color-text-2)">{report.time}</td>
@@ -894,6 +890,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 													<option value="under-review">Under Review</option>
 													<option value="in-progress">Dispatched</option>
 													<option value="resolved">Resolved</option>
+													<option value="rejected">Rejected</option>
 												</select>
 												<ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-(--color-text-4)" />
 											</div>

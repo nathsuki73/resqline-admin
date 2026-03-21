@@ -2,7 +2,8 @@ export type BridgeIncidentStatus =
   | "under-review"
   | "submitted"
   | "in-progress"
-  | "resolved";
+  | "resolved"
+  | "rejected";
 export type BridgeIncidentDepartment = "BFP" | "CTMO" | "PDRRMO" | "PNP";
 
 export type BridgeIncident = {

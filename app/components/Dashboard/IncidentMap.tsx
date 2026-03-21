@@ -145,11 +145,48 @@ const IncidentMap: React.FC<{
       });
   }, [apiReports, realtimeReports]);
 
-  const getMarkerColor = (type: string) => {
-    if (type === "Fire")
-      return "bg-(--color-orange) ring-(--color-orange-border)";
-    if (type === "Flood") return "bg-(--color-blue) ring-(--color-blue-border)";
-    return "bg-(--color-red) ring-(--color-red-border)";
+  const getCategoryMarkerStyle = (categoryType?: string) => {
+    const normalized = (categoryType ?? "").toUpperCase();
+
+    if (normalized === "STRUCTURAL") {
+      return {
+        marker: "bg-(--color-purple) ring-(--color-purple-border)",
+        ping: "bg-(--color-purple)",
+      };
+    }
+
+    if (normalized === "MEDICAL") {
+      return {
+        marker: "bg-(--color-green) ring-(--color-green-border)",
+        ping: "bg-(--color-green)",
+      };
+    }
+
+    if (normalized === "TRAFFIC") {
+      return {
+        marker: "bg-(--color-amber) ring-(--color-amber-border)",
+        ping: "bg-(--color-amber)",
+      };
+    }
+
+    if (normalized === "FIRE") {
+      return {
+        marker: "bg-(--color-orange) ring-(--color-orange-border)",
+        ping: "bg-(--color-orange)",
+      };
+    }
+
+    if (normalized === "FLOOD") {
+      return {
+        marker: "bg-(--color-blue) ring-(--color-blue-border)",
+        ping: "bg-(--color-blue)",
+      };
+    }
+
+    return {
+      marker: "bg-(--color-red) ring-(--color-red-border)",
+      ping: "bg-(--color-red)",
+    };
   };
 
   const filteredIncidents = useMemo(() => {
@@ -273,6 +310,9 @@ const IncidentMap: React.FC<{
 
         {showIncidentsLayer
           ? filteredIncidents.map((incident) => (
+          (() => {
+            const markerStyle = getCategoryMarkerStyle(incident.incident.type);
+            return (
           <Marker
             key={incident.id}
             latitude={incident.lat}
@@ -285,10 +325,12 @@ const IncidentMap: React.FC<{
               className="group flex cursor-pointer flex-col items-center"
             >
               <div
-                className={`relative h-5 w-5 rounded-full ring-4 shadow-xl border-2 border-white/20 ${getMarkerColor(incident.type)}`}
+                className={`relative h-5 w-5 rounded-full ring-4 shadow-xl border-2 border-white/20 ${markerStyle.marker}`}
               >
-                {incident.type === "SOS" && (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-(--color-red) opacity-75"></span>
+                {incident.incident.status !== "resolved" && (
+                  <span
+                    className={`absolute inset-0 animate-ping rounded-full opacity-75 ${markerStyle.ping}`}
+                  ></span>
                 )}
               </div>
               <div className="mt-2 whitespace-nowrap rounded border border-(--color-border-1) bg-black/90 px-2 py-1 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -296,6 +338,8 @@ const IncidentMap: React.FC<{
               </div>
             </button>
           </Marker>
+            );
+          })()
             ))
           : null}
       </Map>

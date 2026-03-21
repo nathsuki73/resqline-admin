@@ -1,29 +1,37 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { fetchReports } from "@/app/services/reports";
+import { useEffect, useState } from "react";
+import {
+  getReportsState,
+  loadReportsShared,
+  subscribeReportsState,
+} from "./reportsStore";
 
 export function useReports() {
-  const [reports, setReports] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [snapshot, setSnapshot] = useState(getReportsState());
 
-  // 🟢 Create a memoized fetch function
-  const loadReports = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchReports();
-      setReports(data);
-    } catch (err) {
-      console.error("Error fetching reports:", err);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    const unsubscribe = subscribeReportsState(() => {
+      setSnapshot(getReportsState());
+    });
+
+    const current = getReportsState();
+    if (!current.initialized && !current.loading) {
+      void loadReportsShared();
     }
+    if (!current.initialized && current.loading) {
+      void loadReportsShared();
+    }
+
+    return unsubscribe;
   }, []);
 
-  // Initial load
-  useEffect(() => {
-    loadReports();
-  }, [loadReports]);
+  const mutate = async () => {
+    await loadReportsShared(true);
+  };
 
-  // 🟢 Export 'mutate' (or 'refresh') so the UI can trigger a reload
-  return { reports, loading, mutate: loadReports };
+  return {
+    reports: snapshot.reports,
+    loading: snapshot.loading,
+    mutate,
+  };
 }

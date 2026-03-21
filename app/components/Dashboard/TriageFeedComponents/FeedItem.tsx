@@ -34,6 +34,7 @@ export const FeedItem: React.FC<
       bg: "bg-(--color-orange-glow)",
       border: "border-(--color-orange-border)",
       tag: "bg-(--color-orange-glow) text-(--color-orange)",
+      ping: "bg-(--color-orange)",
     },
     TRAFFIC: {
       icon: Truck,
@@ -41,6 +42,7 @@ export const FeedItem: React.FC<
       bg: "bg-(--color-amber-glow)",
       border: "border-(--color-amber-border)",
       tag: "bg-(--color-amber-glow) text-(--color-text-amber)",
+      ping: "bg-(--color-text-amber)",
     },
     FLOOD: {
       icon: Droplets,
@@ -48,20 +50,23 @@ export const FeedItem: React.FC<
       bg: "bg-(--color-blue-glow)",
       border: "border-(--color-blue-border)",
       tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
+      ping: "bg-(--color-text-blue)",
     },
     STRUCTURAL: {
       icon: Building2,
-      color: "text-(--color-text-purple)",
+      color: "text-(--color-purple)",
       bg: "bg-(--color-purple-glow)",
       border: "border-(--color-purple-border)",
-      tag: "bg-(--color-purple-glow) text-(--color-text-purple)",
+      tag: "bg-(--color-purple-glow) text-(--color-purple)",
+      ping: "bg-(--color-purple)",
     },
     MEDICAL: {
       icon: ShieldAlert,
-      color: "text-(--color-red)",
-      bg: "bg-(--color-red-glow)",
-      border: "border-(--color-red-border)",
-      tag: "bg-(--color-red-glow) text-(--color-red)",
+      color: "text-(--color-text-green)",
+      bg: "bg-(--color-green-glow)",
+      border: "border-(--color-green-border)",
+      tag: "bg-(--color-green-glow) text-(--color-text-green)",
+      ping: "bg-(--color-green)",
     },
     OTHER: {
       icon: ShieldAlert,
@@ -69,6 +74,7 @@ export const FeedItem: React.FC<
       bg: "bg-(--color-surface-2)",
       border: "border-(--color-border-1)",
       tag: "bg-(--color-surface-2) text-(--color-text-3)",
+      ping: "bg-(--color-text-3)",
     },
   };
 
@@ -109,7 +115,7 @@ export const FeedItem: React.FC<
             {type}
           </span>
           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-(--color-text-blue)">
-            <span className="h-1.5 w-1.5 rounded-full bg-(--color-blue)" />
+            <span className={`h-1.5 w-1.5 rounded-full ${config.ping}`} />
             {status}
           </span>
         </div>

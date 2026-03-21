@@ -38,11 +38,47 @@ const OperationalSidebar = ({
   const markerLatitude = incident.latitude ?? parsedCoords?.latitude ?? 14.6574;
   const markerLongitude = incident.longitude ?? parsedCoords?.longitude ?? 121.0287;
   const markerTypeSource = `${incident.type ?? ""} ${incident.incidentType ?? ""}`.toLowerCase();
-  const markerColorClass = markerTypeSource.includes("fire")
-    ? "bg-(--color-orange) ring-(--color-orange-border)"
-    : markerTypeSource.includes("flood")
-      ? "bg-(--color-blue) ring-(--color-blue-border)"
-      : "bg-(--color-red) ring-(--color-red-border)";
+  const categoryStyle = markerTypeSource.includes("structural")
+    ? {
+        marker: "bg-(--color-purple) ring-(--color-purple-border)",
+        ping: "bg-(--color-purple)",
+        text: "text-(--color-purple)",
+        avatar: "border-(--color-purple-border) bg-(--color-purple-glow) text-(--color-purple)",
+      }
+    : markerTypeSource.includes("medical")
+      ? {
+          marker: "bg-(--color-green) ring-(--color-green-border)",
+          ping: "bg-(--color-green)",
+          text: "text-(--color-text-green)",
+          avatar: "border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green)",
+        }
+      : markerTypeSource.includes("traffic")
+        ? {
+            marker: "bg-(--color-amber) ring-(--color-amber-border)",
+            ping: "bg-(--color-amber)",
+            text: "text-(--color-text-amber)",
+            avatar: "border-(--color-amber-border) bg-(--color-amber-glow) text-(--color-text-amber)",
+          }
+        : markerTypeSource.includes("fire")
+          ? {
+              marker: "bg-(--color-orange) ring-(--color-orange-border)",
+              ping: "bg-(--color-orange)",
+              text: "text-(--color-orange)",
+              avatar: "border-(--color-orange-border) bg-(--color-orange-glow) text-(--color-orange)",
+            }
+          : markerTypeSource.includes("flood")
+            ? {
+                marker: "bg-(--color-blue) ring-(--color-blue-border)",
+                ping: "bg-(--color-blue)",
+                text: "text-(--color-text-blue)",
+                avatar: "border-(--color-blue-border) bg-(--color-blue-glow) text-(--color-text-blue)",
+              }
+            : {
+                marker: "bg-(--color-red) ring-(--color-red-border)",
+                ping: "bg-(--color-red)",
+                text: "text-(--color-text-red)",
+                avatar: "border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red)",
+              };
   const shouldPulse = !(markerTypeSource.includes("fire") || markerTypeSource.includes("flood"));
 
   return (
@@ -82,9 +118,9 @@ const OperationalSidebar = ({
             style={{ width: "100%", height: "100%" }}
           >
             <Marker latitude={markerLatitude} longitude={markerLongitude} anchor="center">
-              <div className={`relative h-4 w-4 rounded-full border-2 border-white/20 ring-3 ${markerColorClass}`}>
+              <div className={`relative h-4 w-4 rounded-full border-2 border-white/20 ring-3 ${categoryStyle.marker}`}>
                 {shouldPulse && (
-                  <span className="absolute inset-0 animate-ping rounded-full bg-(--color-red) opacity-75" />
+                  <span className={`absolute inset-0 animate-ping rounded-full opacity-75 ${categoryStyle.ping}`} />
                 )}
               </div>
             </Marker>
@@ -102,7 +138,7 @@ const OperationalSidebar = ({
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded border border-(--color-border-1) bg-(--color-surface-2) p-2">
               <p className="text-[8px] uppercase text-(--color-text-4)">Type</p>
-              <p className="text-xs font-bold text-(--color-orange)">
+              <p className={`text-xs font-bold ${categoryStyle.text}`}>
                 {incident.type || incident.incidentType}
               </p>
             </div>
@@ -124,7 +160,7 @@ const OperationalSidebar = ({
           </p>
           <div className="flex items-center justify-between rounded-lg border border-(--color-border-1) bg-(--color-surface-2) p-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-orange-border) bg-(--color-orange-glow) text-xs font-bold text-(--color-orange)">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold ${categoryStyle.avatar}`}>
                 {initials || "RD"}
               </div>
               <div>

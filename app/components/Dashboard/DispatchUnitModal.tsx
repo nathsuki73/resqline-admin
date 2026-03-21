@@ -6,6 +6,10 @@ import emailjs from "@emailjs/browser";
 import { updateReportStatus } from "@/app/services/reports";
 import { createPortal } from "react-dom";
 import { fetchReportById } from "@/app/services/reports";
+import {
+  mapApiStatusToLabel,
+  mapSlugToApiStatus,
+} from "@/app/constants/reportStatus";
 
 const MODAL_EXIT_MS = 260;
 
@@ -113,21 +117,6 @@ const getSeverityClass = (severity: string) => {
   return "border-(--color-blue-border) bg-(--color-blue-glow) text-(--color-text-blue)";
 };
 
-const getIncidentStatusLabel = (status: unknown) => {
-  if (status === 1 || status === "submitted") return "Submitted";
-  if (
-    status === 2 ||
-    status === "in-progress" ||
-    status === "under-review" ||
-    status === "dispatched"
-  ) {
-    return "Dispatched";
-  }
-  if (status === 3 || status === "resolved") return "Resolved";
-  if (status === 4 || status === "rejected") return "Rejected";
-  return "Under Review";
-};
-
 const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
   isOpen,
   onClose,
@@ -187,7 +176,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
         api?.reportByPhoneNumber ||
         api?.reportedBy?.phoneNumber ||
         "No contact provided",
-      statusLabel: api ? getIncidentStatusLabel(api.status) : severity,
+      statusLabel: api ? mapApiStatusToLabel(api.status) : severity,
       reportedTime,
     };
   }, [incidentDetails, coordinates, incidentType, location, severity]);
@@ -277,7 +266,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
       // 2. 🟢 Update Backend Status to 'In Progress' (Enum index 2)
       // Strip "RPT-2026-" if your backend expects the raw UUID
       const cleanId = incidentId.replace("RPT-2026-", "");
-      await updateReportStatus(cleanId, 2);
+      await updateReportStatus(cleanId, mapSlugToApiStatus("in-progress"));
 
       console.log(`✅ Status updated to In Progress for ${cleanId}`);
 

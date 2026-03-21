@@ -16,6 +16,7 @@ import {
   getActiveIncident,
   INCIDENT_ACTION_EVENT,
   INCIDENT_SELECTED_EVENT,
+  setActiveIncident,
   type BridgeActionType,
   type BridgeIncident,
 } from "./incidentBridge";
@@ -26,6 +27,11 @@ import DispatchUnitModal, {
 import useModalDissolve from "../settings/ui/useModalDissolve";
 import { useReports } from "@/app/hooks/useReports";
 import { updateReportStatus } from "@/app/services/reports";
+import {
+  mapSlugToApiStatus,
+  statusStep,
+  type IncidentStatusSlug,
+} from "@/app/constants/reportStatus";
 
 const MODAL_EXIT_MS = 260;
 
@@ -53,6 +59,15 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
 
   const { mutate } = useReports();
 
+  const syncIncidentStatus = (status: IncidentStatusSlug) => {
+    const next = {
+      ...incident,
+      status: status as BridgeIncident["status"],
+    };
+    setIncident(next);
+    setActiveIncident(next);
+  };
+
   const runAction = async (action: BridgeActionType) => {
     if (action === "dispatch") {
       setIsDispatchModalOpen(true);
@@ -64,8 +79,8 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
         const cleanId = incident.id.replace("RPT-2026-", "");
         console.log(`🚫 Rejecting RPT-${cleanId}...`);
 
-        // Update backend to Status 4 (Rejected)
-        await updateReportStatus(cleanId, 4);
+        await updateReportStatus(cleanId, mapSlugToApiStatus("rejected"));
+        syncIncidentStatus("rejected");
 
         // Refresh the global state
         await mutate();
@@ -84,9 +99,10 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
   ) => {
     try {
       const cleanId = incident.id.replace("RPT-2026-", "");
-      console.log(`🔄 Updating RPT-${cleanId} to In Progress (Code 2)...`);
+      console.log(`🔄 Updating RPT-${cleanId} to Dispatched...`);
 
-      await updateReportStatus(cleanId, 2);
+      await updateReportStatus(cleanId, mapSlugToApiStatus("in-progress"));
+      syncIncidentStatus("in-progress");
 
       // This is the key: once mutate finishes, the new status 'in-progress'
       // flows back into the 'incident' state via your useEffect listeners.
@@ -101,6 +117,19 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
     }
   };
 
+  const handleResolveIncident = async () => {
+    try {
+      const cleanId = incident.id.replace("RPT-2026-", "");
+      await updateReportStatus(cleanId, mapSlugToApiStatus("resolved"));
+      syncIncidentStatus("resolved");
+      await mutate();
+      setLastActionMessage(`Report #${incident.id} marked as resolved.`);
+    } catch (error) {
+      console.error("❌ Failed to resolve incident:", error);
+      setLastActionMessage("Error: Failed to resolve report.");
+    }
+  };
+
   const handleClearSelection = () => {
     setIsDispatchModalOpen(false);
     setIsRejectModalOpen(false);
@@ -108,6 +137,18 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
     clearActiveIncident();
     onClearSelection?.();
   };
+
+  useEffect(() => {
+    if (!lastActionMessage) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setLastActionMessage("");
+    }, 10000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [lastActionMessage]);
 
   useEffect(() => {
     // Bridge subscriptions keep header decoupled from feed implementation details.
@@ -150,27 +191,13 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
 
   // Inside IncidentHeader.tsx
   // Inside IncidentHeader.tsx
-  const statusStep = useMemo(() => {
+  const currentStatusStep = useMemo(() => {
     if (!incident) return 0;
 
-    const status = incident.status?.toLowerCase();
+    const status = (incident.status?.toLowerCase() ||
+      "submitted") as IncidentStatusSlug;
 
-    // Step 1: Submitted
-    if (status === "submitted") return 1;
-
-    // Step 2: Under Review (Backend status 1)
-    if (status === "under-review") return 2;
-
-    // Step 3: Dispatched (Backend status 2 / Slug "in-progress")
-    if (status === "in-progress" || status === "dispatched") return 3;
-
-    // Step 4: Resolved (Backend status 3)
-    if (status === "resolved") return 4;
-
-    // Step 5: Rejected (Backend status 4)
-    if (status === "rejected") return 5;
-
-    return 1;
+    return statusStep(status);
   }, [incident?.status]);
 
   if (!incident) return null;
@@ -194,9 +221,19 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
             type="button"
             onClick={() => runAction("dispatch")}
             className="ui-btn ui-btn-primary"
+            disabled={currentStatusStep < 2 || currentStatusStep >= 4}
           >
             <Send size={14} fill="currentColor" />
             Dispatch Unit
+          </button>
+          <button
+            type="button"
+            onClick={handleResolveIncident}
+            disabled={currentStatusStep !== 3}
+            className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <CheckCircle2 size={14} />
+            Resolved
           </button>
           <button
             type="button"
@@ -226,9 +263,9 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           label="Submitted"
           icon={<Check size={12} />}
           variant={
-            statusStep > 1
+            currentStatusStep > 1
               ? "completed"
-              : statusStep === 1
+              : currentStatusStep === 1
                 ? "active"
                 : "disabled"
           }
@@ -239,9 +276,9 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           label="Under Review"
           icon={<Clock size={12} />}
           variant={
-            statusStep > 2
+            currentStatusStep > 2
               ? "completed"
-              : statusStep === 2
+              : currentStatusStep === 2
                 ? "active"
                 : "disabled"
           }
@@ -253,9 +290,9 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           label="Dispatched"
           icon={<Star size={12} />}
           variant={
-            statusStep > 3
+            currentStatusStep > 3
               ? "completed"
-              : statusStep === 3
+              : currentStatusStep === 3
                 ? "active"
                 : "disabled"
           }
@@ -263,7 +300,7 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
         <ChevronRight size={12} className="text-(--color-text-4)" />
 
         {/* Only show Resolved or Rejected as the final step */}
-        {statusStep === 5 ? (
+        {currentStatusStep === 5 ? (
           <StatusPill
             label="Rejected"
             icon={<X size={12} />}
@@ -273,7 +310,7 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
           <StatusPill
             label="Resolved"
             icon={<CheckCircle2 size={12} />}
-            variant={statusStep === 4 ? "completed" : "disabled"}
+            variant={currentStatusStep === 4 ? "completed" : "disabled"}
           />
         )}
       </div>
