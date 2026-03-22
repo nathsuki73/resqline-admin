@@ -5,6 +5,10 @@ import useModalDissolve from "../settings/ui/useModalDissolve";
 import emailjs from "@emailjs/browser";
 import { createPortal } from "react-dom";
 import { fetchReportById } from "@/app/features/reports/services/reportsApi";
+import {
+  getReportCategoryInput,
+  mapCategoryCodeToLabel,
+} from "@/app/constants/reportCategories";
 import { mapApiStatusToLabel } from "@/app/constants/reportStatus";
 
 const MODAL_EXIT_MS = 260;
@@ -161,7 +165,9 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
       : "Unknown time";
 
     return {
-      incidentType: api?.description || incidentType,
+      incidentType: api
+        ? mapCategoryCodeToLabel(getReportCategoryInput(api))
+        : incidentType,
       location:
         api?.reportedAt?.reverseGeoCode ||
         api?.location?.reverseGeoCode ||
@@ -173,6 +179,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
         api?.reportByPhoneNumber ||
         api?.reportedBy?.phoneNumber ||
         "No contact provided",
+      reporterDescription: api?.description || "",
       statusLabel: api ? mapApiStatusToLabel(api.status) : severity,
       reportedTime,
     };
@@ -252,12 +259,17 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
         incidentId: incidentId, // e.g. "RPT-2026-..."
         incidentType: incidentType,
         location: location,
+        reporterDescription:
+          incidentSummary.reporterDescription ||
+          "No reporter description provided.",
         appUrl: process.env.NEXT_PUBLIC_URL,
         units: selectedUnits.join(", "),
         note: dispatchNote || "No additional instructions.",
         email: "w.w.w.o.f.f.i.c.i.a.l0@gmail.com",
         mapUrl: googleMapsUrl,
       };
+
+      console.log("Dispatch EmailJS template params:", templateParams);
 
       // 1. Send Email
       await emailjs.send(
