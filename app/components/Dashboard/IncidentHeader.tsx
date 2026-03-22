@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Send,
@@ -10,10 +11,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 import {
+  clearActiveIncident,
   consumeQueuedIncidentAction,
   getActiveIncident,
   INCIDENT_ACTION_EVENT,
   INCIDENT_SELECTED_EVENT,
+  setActiveIncident,
   type BridgeActionType,
   type BridgeIncident,
 } from "./incidentBridge";
@@ -22,8 +25,11 @@ import DispatchUnitModal, {
   DEFAULT_DEPLOYED_UNITS,
 } from "./DispatchUnitModal";
 import useModalDissolve from "../settings/ui/useModalDissolve";
-import { useReports } from "@/app/hooks/useReports";
-import { updateReportStatus } from "@/app/services/reports";
+import {
+  statusStep,
+  type IncidentStatusSlug,
+} from "@/app/constants/reportStatus";
+import { transitionReportStatus } from "@/app/features/reports/services/reportTransitionService";
 
 const MODAL_EXIT_MS = 260;
 
@@ -43,13 +49,20 @@ const DEFAULT_INCIDENT: BridgeIncident = {
 };
 // TODO(API): Replace fallback with latest selected incident payload from dashboard bootstrap endpoint.
 
-const IncidentHeader = () => {
+const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void }) => {
   const [incident, setIncident] = useState<BridgeIncident>(DEFAULT_INCIDENT);
   const [lastActionMessage, setLastActionMessage] = useState<string>("");
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
-  const { mutate } = useReports();
+  const syncIncidentStatus = (status: IncidentStatusSlug) => {
+    const next = {
+      ...incident,
+      status: status as BridgeIncident["status"],
+    };
+    setIncident(next);
+    setActiveIncident(next);
+  };
 
   const runAction = async (action: BridgeActionType) => {
     if (action === "dispatch") {
@@ -59,16 +72,16 @@ const IncidentHeader = () => {
 
     if (action === "reject") {
       try {
-        const cleanId = incident.id.replace("RPT-2026-", "");
-        console.log(`🚫 Rejecting RPT-${cleanId}...`);
+        const result = await transitionReportStatus({
+          reportId: incident.id,
+          nextStatus: "rejected",
+          origin: "dashboard",
+        });
+        syncIncidentStatus(result.status);
 
-        // Update backend to Status 4 (Rejected)
-        await updateReportStatus(cleanId, 4);
-
-        // Refresh the global state
-        await mutate();
-
-        setLastActionMessage(`Report #${incident.id} has been rejected.`);
+        setLastActionMessage(
+          `Report #${incident.id} has been rejected. Reporter app: ${result.mobileStatus}.`,
+        );
       } catch (err) {
         console.error("❌ Failed to reject incident:", err);
         setLastActionMessage("Error: Failed to reject report.");
@@ -81,23 +94,58 @@ const IncidentHeader = () => {
     _note: string,
   ) => {
     try {
-      const cleanId = incident.id.replace("RPT-2026-", "");
-      console.log(`🔄 Updating RPT-${cleanId} to In Progress (Code 2)...`);
-
-      await updateReportStatus(cleanId, 2);
-
-      // This is the key: once mutate finishes, the new status 'in-progress'
-      // flows back into the 'incident' state via your useEffect listeners.
-      await mutate();
+      const result = await transitionReportStatus({
+        reportId: incident.id,
+        nextStatus: "in-progress",
+        origin: "dashboard",
+      });
+      syncIncidentStatus(result.status);
 
       setLastActionMessage(
-        `Dispatch initiated for report #${incident.id}. ${selectedUnitIds.length} unit(s) dispatched.`,
+        `Dispatch initiated for report #${incident.id}. ${selectedUnitIds.length} unit(s) dispatched. Reporter app: ${result.mobileStatus}.`,
       );
     } catch (error) {
       console.error("❌ Failed to update status during dispatch:", error);
       setLastActionMessage("Error: Failed to update incident status.");
     }
   };
+
+  const handleResolveIncident = async () => {
+    try {
+      const result = await transitionReportStatus({
+        reportId: incident.id,
+        nextStatus: "resolved",
+        origin: "dashboard",
+      });
+      syncIncidentStatus(result.status);
+      setLastActionMessage(
+        `Report #${incident.id} marked as resolved. Reporter app: ${result.mobileStatus}.`,
+      );
+    } catch (error) {
+      console.error("❌ Failed to resolve incident:", error);
+      setLastActionMessage("Error: Failed to resolve report.");
+    }
+  };
+
+  const handleClearSelection = () => {
+    setIsDispatchModalOpen(false);
+    setIsRejectModalOpen(false);
+    setLastActionMessage("");
+    clearActiveIncident();
+    onClearSelection?.();
+  };
+
+  useEffect(() => {
+    if (!lastActionMessage) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setLastActionMessage("");
+    }, 10000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [lastActionMessage]);
 
   useEffect(() => {
     // Bridge subscriptions keep header decoupled from feed implementation details.
@@ -140,27 +188,13 @@ const IncidentHeader = () => {
 
   // Inside IncidentHeader.tsx
   // Inside IncidentHeader.tsx
-  const statusStep = useMemo(() => {
+  const currentStatusStep = useMemo(() => {
     if (!incident) return 0;
 
-    const status = incident.status?.toLowerCase();
+    const status = (incident.status?.toLowerCase() ||
+      "submitted") as IncidentStatusSlug;
 
-    // Step 1: Submitted
-    if (status === "submitted") return 1;
-
-    // Step 2: Under Review (Backend status 1)
-    if (status === "under-review") return 2;
-
-    // Step 3: Dispatched (Backend status 2 / Slug "in-progress")
-    if (status === "in-progress" || status === "dispatched") return 3;
-
-    // Step 4: Resolved (Backend status 3)
-    if (status === "resolved") return 4;
-
-    // Step 5: Rejected (Backend status 4)
-    if (status === "rejected") return 5;
-
-    return 1;
+    return statusStep(status);
   }, [incident?.status]);
 
   if (!incident) return null;
@@ -184,9 +218,19 @@ const IncidentHeader = () => {
             type="button"
             onClick={() => runAction("dispatch")}
             className="ui-btn ui-btn-primary"
+            disabled={currentStatusStep < 1 || currentStatusStep >= 3}
           >
             <Send size={14} fill="currentColor" />
             Dispatch Unit
+          </button>
+          <button
+            type="button"
+            onClick={handleResolveIncident}
+            disabled={currentStatusStep !== 2}
+            className="ui-btn border border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green) transition-colors hover:bg-[rgba(67,160,71,0.25)] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <CheckCircle2 size={14} />
+            Resolved
           </button>
           <button
             type="button"
@@ -194,6 +238,13 @@ const IncidentHeader = () => {
             className="ui-btn border border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red) hover:bg-[rgba(229,57,53,0.2)]"
           >
             Reject
+          </button>
+          <button
+            type="button"
+            onClick={handleClearSelection}
+            className="ui-btn border border-(--color-border-2) bg-(--color-surface-2) text-(--color-text-2) hover:border-(--color-border-1)"
+          >
+            Close
           </button>
         </div>
       </div>
@@ -209,9 +260,9 @@ const IncidentHeader = () => {
           label="Submitted"
           icon={<Check size={12} />}
           variant={
-            statusStep > 1
+            currentStatusStep > 0
               ? "completed"
-              : statusStep === 1
+              : currentStatusStep === 0
                 ? "active"
                 : "disabled"
           }
@@ -222,23 +273,22 @@ const IncidentHeader = () => {
           label="Under Review"
           icon={<Clock size={12} />}
           variant={
-            statusStep > 2
+            currentStatusStep > 1
               ? "completed"
-              : statusStep === 2
+              : currentStatusStep === 1
                 ? "active"
                 : "disabled"
           }
         />
         <ChevronRight size={12} className="text-(--color-text-4)" />
 
-        {/* Displaying In-Progress as "Dispatched" */}
         <StatusPill
           label="Dispatched"
           icon={<Star size={12} />}
           variant={
-            statusStep > 3
+            currentStatusStep > 2
               ? "completed"
-              : statusStep === 3
+              : currentStatusStep === 2
                 ? "active"
                 : "disabled"
           }
@@ -246,7 +296,7 @@ const IncidentHeader = () => {
         <ChevronRight size={12} className="text-(--color-text-4)" />
 
         {/* Only show Resolved or Rejected as the final step */}
-        {statusStep === 5 ? (
+        {currentStatusStep === 4 ? (
           <StatusPill
             label="Rejected"
             icon={<X size={12} />}
@@ -256,7 +306,7 @@ const IncidentHeader = () => {
           <StatusPill
             label="Resolved"
             icon={<CheckCircle2 size={12} />}
-            variant={statusStep === 4 ? "completed" : "disabled"}
+            variant={currentStatusStep === 3 ? "completed" : "disabled"}
           />
         )}
       </div>
@@ -336,17 +386,20 @@ const RejectIncidentModal = ({
   const { shouldRender, isVisible } = useModalDissolve(isOpen, MODAL_EXIT_MS);
 
   if (!shouldRender) return null;
+  if (typeof window === "undefined") return null;
 
-  return (
+  const modalContent = (
     <div
       className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 p-4 ${
         isVisible ? "is-open" : "is-closed"
       }`}
+      onClick={onCancel}
     >
       <div
         className={`modal-card-dissolve w-full max-w-sm rounded-2xl border border-(--color-border-1) bg-(--color-surface-1) p-5 shadow-xl ${
           isVisible ? "is-open" : "is-closed"
         }`}
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -391,6 +444,8 @@ const RejectIncidentModal = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default IncidentHeader;

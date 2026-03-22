@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import AlertsSection from "./components/settings/AlertsSection";
 import AllReportsSection from "./components/AllReports/AllReportsSection";
-import IncidentMap from "./components/Dashboard/IncidentMap";
 import ResponderDashboardShell from "./components/Dashboard/ResponderDashboard";
 import DisplaySection from "./components/settings/DisplaySection";
 import ProfileSection from "./components/settings/ProfileSection";
@@ -13,6 +12,8 @@ import SettingsNav from "./components/SettingsNav";
 import SideNav, { SideNavPanel, SideNavTriageItem } from "./components/SideNav";
 import TriageFeed from "./components/Dashboard/TriageFeed";
 import OperationalMapView from "./components/MapView/OperationalMapView";
+import { useReports } from "./hooks/useReports";
+import { isTerminalStatus } from "./constants/reportStatus";
 
 export default function ResponderDashboard() {
   const [activePanel, setActivePanel] = useState<SideNavPanel>("triage");
@@ -21,8 +22,16 @@ export default function ResponderDashboard() {
   const [activeSettingsItem, setActiveSettingsItem] =
     useState<string>("profile-account");
 
-  // TODO: Replace with API call to detect active SOS incidents from backend
-  const hasSosAlerts = true; // Currently hardcoded; will be dynamic from API
+  const { reports } = useReports();
+
+  const hasSosAlerts = useMemo(() => {
+    const isSosReport = (report: any) => {
+      const type = typeof report?.type === "string" ? report.type.toLowerCase() : "";
+      return report?.category === 1 || type === "sos" || type === "medical";
+    };
+
+    return reports.some((report: any) => isSosReport(report) && !isTerminalStatus(report?.status));
+  }, [reports]);
 
   const renderTriageContent = () => {
     switch (activeTriageItem) {

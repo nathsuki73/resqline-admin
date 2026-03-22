@@ -1,7 +1,16 @@
-import { Droplets, Flame, ShieldAlert, Truck } from "lucide-react";
+import {
+  Building2,
+  CircleHelp,
+  Droplets,
+  Flame,
+  HeartPulse,
+  Siren,
+  Truck,
+} from "lucide-react";
 import { BridgeIncident } from "../incidentBridge";
+import { type IncidentCategoryType } from "@/app/constants/reportCategories";
 
-type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
+type FeedType = IncidentCategoryType;
 
 interface ReportFeedItem {
   id: string;
@@ -27,19 +36,29 @@ export const FeedItem: React.FC<
   ReportFeedItem & { active?: boolean; onSelect: () => void }
 > = ({ title, location, time, type, percentage, status, active, onSelect }) => {
   const configs: Record<FeedType, any> = {
+    SOS: {
+      icon: Siren,
+      color: "text-(--color-red)",
+      bg: "bg-(--color-red-glow)",
+      border: "border-(--color-red-border)",
+      tag: "bg-(--color-red-glow) text-(--color-text-red)",
+      ping: "bg-(--color-red)",
+    },
     FIRE: {
       icon: Flame,
       color: "text-(--color-orange)",
       bg: "bg-(--color-orange-glow)",
       border: "border-(--color-orange-border)",
       tag: "bg-(--color-orange-glow) text-(--color-orange)",
+      ping: "bg-(--color-orange)",
     },
-    CRASH: {
+    TRAFFIC: {
       icon: Truck,
       color: "text-(--color-text-amber)",
       bg: "bg-(--color-amber-glow)",
       border: "border-(--color-amber-border)",
       tag: "bg-(--color-amber-glow) text-(--color-text-amber)",
+      ping: "bg-(--color-text-amber)",
     },
     FLOOD: {
       icon: Droplets,
@@ -47,27 +66,31 @@ export const FeedItem: React.FC<
       bg: "bg-(--color-blue-glow)",
       border: "border-(--color-blue-border)",
       tag: "bg-(--color-blue-glow) text-(--color-text-blue)",
+      ping: "bg-(--color-text-blue)",
     },
-    CRIME: {
-      icon: ShieldAlert,
-      color: "text-(--color-text-purple)",
+    STRUCTURAL: {
+      icon: Building2,
+      color: "text-(--color-purple)",
       bg: "bg-(--color-purple-glow)",
       border: "border-(--color-purple-border)",
-      tag: "bg-(--color-purple-glow) text-(--color-text-purple)",
+      tag: "bg-(--color-purple-glow) text-(--color-purple)",
+      ping: "bg-(--color-purple)",
     },
     MEDICAL: {
-      icon: ShieldAlert,
-      color: "text-(--color-red)",
-      bg: "bg-(--color-red-glow)",
-      border: "border-(--color-red-border)",
-      tag: "bg-(--color-red-glow) text-(--color-red)",
+      icon: HeartPulse,
+      color: "text-(--color-text-green)",
+      bg: "bg-(--color-green-glow)",
+      border: "border-(--color-green-border)",
+      tag: "bg-(--color-green-glow) text-(--color-text-green)",
+      ping: "bg-(--color-green)",
     },
     OTHER: {
-      icon: ShieldAlert,
+      icon: CircleHelp,
       color: "text-(--color-text-3)",
       bg: "bg-(--color-surface-2)",
       border: "border-(--color-border-1)",
       tag: "bg-(--color-surface-2) text-(--color-text-3)",
+      ping: "bg-(--color-text-3)",
     },
   };
 
@@ -108,7 +131,7 @@ export const FeedItem: React.FC<
             {type}
           </span>
           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-(--color-text-blue)">
-            <span className="h-1.5 w-1.5 rounded-full bg-(--color-blue)" />
+            <span className={`h-1.5 w-1.5 rounded-full ${config.ping}`} />
             {status}
           </span>
         </div>

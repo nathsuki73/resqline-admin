@@ -1,14 +1,33 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { setActiveIncident, type BridgeIncident } from "./incidentBridge";
-import { useRealtimeReports } from "@/app/hooks/useRealTimeReports";
+import {
+  getActiveIncident,
+  INCIDENT_CLEARED_EVENT,
+  INCIDENT_SELECTED_EVENT,
+  setActiveIncident,
+  type BridgeIncident,
+} from "./incidentBridge";
 import { useReports } from "@/app/hooks/useReports";
 import { StatBlock } from "./TriageFeedComponents/StatBlock";
 import { FeedItem } from "./TriageFeedComponents/FeedItem";
-import { fetchReportById, updateReportStatus } from "@/app/services/reports";
+import { fetchReportById } from "@/app/features/reports/services/reportsApi";
+import {
+  getReportCategoryInput,
+  mapCategoryCodeToDepartment,
+  mapCategoryCodeToType,
+  type IncidentCategoryType,
+} from "@/app/constants/reportCategories";
+import {
+  type IncidentStatusSlug,
+  mapApiStatusToLabel,
+  mapApiStatusToSlug,
+  mapResponderStatusToMobileStatus,
+  mergeStatusWithoutRegression,
+} from "@/app/constants/reportStatus";
+import { transitionReportStatus } from "@/app/features/reports/services/reportTransitionService";
 
 // --- Types ---
-type FeedType = "FIRE" | "CRASH" | "FLOOD" | "MEDICAL" | "CRIME" | "OTHER";
+type FeedType = IncidentCategoryType;
 
 interface ReportFeedItem {
   id: string;
@@ -21,60 +40,35 @@ interface ReportFeedItem {
   incident: BridgeIncident;
 }
 
-// --- Helpers ---
-const mapCategoryToType = (category: number): FeedType => {
-  switch (category) {
-    case 1:
-      return "MEDICAL";
-    case 2:
-      return "CRASH";
-    case 3:
-      return "FIRE";
-    case 4:
-      return "FLOOD";
-    case 5:
-      return "CRIME";
-    default:
-      return "OTHER";
-  }
-};
-
-// Inside TriageFeed.tsx
-const mapStatus = (status: number): string => {
-  const statuses: Record<number, string> = {
-    1: "Submitted",
-    2: "In Progress", // 🟢 Change this from "Under Review" to "In Progress"
-    3: "Resolved", // Adjust these based on your C# Enum
-    4: "Rejected",
-  };
-  return statuses[status] || "Submitted";
-};
-
 // --- Main Component ---
 const TriageFeed: React.FC = () => {
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const [statusOverridesById, setStatusOverridesById] = useState<
+    Record<string, IncidentStatusSlug>
+  >({});
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState<
     "All" | BridgeIncident["department"]
   >("All");
 
-  const { reports: apiReports, loading, mutate } = useReports();
-  const { reports: realtimeReports } = useRealtimeReports();
-
-  // Single source of truth for all reports
-  const mergedReports = useMemo(
-    () => [...realtimeReports, ...apiReports],
-    [realtimeReports, apiReports],
-  );
+  const { reports: mergedReports, loading } = useReports();
 
   // Transform raw reports into Feed Item shape with SignalR + API compatibility
   const liveReportItems: ReportFeedItem[] = useMemo(
     () =>
       mergedReports.map((r) => {
-        const incidentCategoryName = mapCategoryToType(r.category);
+        const sourceStatus = mapApiStatusToSlug(r.status);
+        const effectiveStatus = mergeStatusWithoutRegression(
+          statusOverridesById[r.id] ?? sourceStatus,
+          sourceStatus,
+        );
+        const categoryInput = getReportCategoryInput(r);
+        const incidentCategoryName = mapCategoryCodeToType(categoryInput);
 
         // 🟢 1. Handle Location Fallback (API uses 'location', SignalR uses 'reportedAt')
         const lat = r.reportedAt?.latitude || r.location?.latitude;
         const lon = r.reportedAt?.longitude || r.location?.longitude;
+        const latitude = Number(lat);
+        const longitude = Number(lon);
         const geoCode =
           r.reportedAt?.reverseGeoCode || r.location?.reverseGeoCode;
         const locationString =
@@ -97,12 +91,14 @@ const TriageFeed: React.FC = () => {
           time: timeDisplay,
           type: incidentCategoryName,
           percentage: "90%",
-          status: mapStatus(r.status),
+          status: mapApiStatusToLabel(effectiveStatus),
           incident: {
             id: r.id,
             type: incidentCategoryName,
             incidentType: r.description || "General Incident",
             location: locationString,
+            latitude: Number.isFinite(latitude) ? latitude : undefined,
+            longitude: Number.isFinite(longitude) ? longitude : undefined,
 
             reporter: r.reportByName || r.reportedBy?.name || "Unknown",
             reporterContact:
@@ -110,20 +106,19 @@ const TriageFeed: React.FC = () => {
               r.reportedBy?.phoneNumber ||
               "No contact provided",
             aiAnalysis: r.aiProbabilities || {},
-            department: (r.category === 3
-              ? "BFP"
-              : r.category === 2
-                ? "CTMO"
-                : "PDRRMO") as BridgeIncident["department"],
+            department: mapCategoryCodeToDepartment(
+              categoryInput,
+            ) as BridgeIncident["department"],
             severity: (r.status === 1 ? "Critical" : "Medium") as
               | "Critical"
               | "High"
               | "Medium"
               | "Low",
             // 🟢 Sync status slug for the Header Progress Bar
-            status: mapStatus(r.status)
-              .toLowerCase()
-              .replace(/\s+/g, "-") as BridgeIncident["status"],
+            status: effectiveStatus as BridgeIncident["status"],
+            mobileStatus: mapResponderStatusToMobileStatus(
+              effectiveStatus,
+            ),
             time: timeDisplay,
             reporterDescription: r.description || "",
             internalNote: r.internalNote || "",
@@ -132,7 +127,7 @@ const TriageFeed: React.FC = () => {
           },
         };
       }),
-    [mergedReports],
+    [mergedReports, statusOverridesById],
   );
 
   // FIXED: Define the missing filteredReportItems variable
@@ -144,6 +139,46 @@ const TriageFeed: React.FC = () => {
         );
   }, [liveReportItems, selectedDepartmentFilter]);
 
+  useEffect(() => {
+    const selected = getActiveIncident();
+    setActiveCardId(selected?.id ?? null);
+    if (selected?.id && selected.status) {
+      setStatusOverridesById((prev) => ({
+        ...prev,
+        [selected.id]: selected.status as IncidentStatusSlug,
+      }));
+    }
+
+    const onIncidentSelected = (event: Event) => {
+      const detail = (event as CustomEvent<BridgeIncident>).detail;
+      setActiveCardId(detail?.id ?? null);
+      if (detail?.id && detail?.status) {
+        setStatusOverridesById((prev) => ({
+          ...prev,
+          [detail.id]: detail.status as IncidentStatusSlug,
+        }));
+      }
+    };
+
+    const onIncidentCleared = () => {
+      setActiveCardId(null);
+    };
+
+    window.addEventListener(
+      INCIDENT_SELECTED_EVENT,
+      onIncidentSelected as EventListener,
+    );
+    window.addEventListener(INCIDENT_CLEARED_EVENT, onIncidentCleared);
+
+    return () => {
+      window.removeEventListener(
+        INCIDENT_SELECTED_EVENT,
+        onIncidentSelected as EventListener,
+      );
+      window.removeEventListener(INCIDENT_CLEARED_EVENT, onIncidentCleared);
+    };
+  }, []);
+
   // Inside TriageFeed.tsx
 
   // Inside TriageFeed.tsx -> handleSelectReport
@@ -154,13 +189,21 @@ const TriageFeed: React.FC = () => {
     setActiveIncident(item.incident);
 
     try {
-      let currentStatusSlug = item.incident.status;
+      let currentStatusSlug = item.incident.status as IncidentStatusSlug;
 
       // Move to 'Under Review' if it's currently 'Submitted'
       if (item.status === "Submitted") {
-        await updateReportStatus(item.id, 2);
+        await transitionReportStatus({
+          reportId: item.id,
+          nextStatus: "under-review",
+          origin: "triage",
+        });
         currentStatusSlug = "under-review";
-        await mutate(); // Refresh list in background
+        setStatusOverridesById((prev) => ({
+          ...prev,
+          [item.id]: currentStatusSlug,
+        }));
+        setActiveIncident({ ...item.incident, status: currentStatusSlug });
       }
 
       // 2. Fetch full details
@@ -173,12 +216,23 @@ const TriageFeed: React.FC = () => {
         images: fullData.images || [],
         reporterDescription:
           fullData.description || item.incident.reporterDescription,
-        // 🟢 Use the status mapped from fullData to ensure accuracy
-        status: mapStatus(fullData.status)
-          .toLowerCase()
-          .replace(/\s+/g, "-") as BridgeIncident["status"],
+        // Avoid regressions from stale payload by keeping the furthest-known status.
+        status: mergeStatusWithoutRegression(
+          currentStatusSlug,
+          mapApiStatusToSlug(fullData.status),
+        ) as BridgeIncident["status"],
+        mobileStatus: mapResponderStatusToMobileStatus(
+          mergeStatusWithoutRegression(
+            currentStatusSlug,
+            mapApiStatusToSlug(fullData.status),
+          ),
+        ),
       };
 
+      setStatusOverridesById((prev) => ({
+        ...prev,
+        [item.id]: fullIncident.status as IncidentStatusSlug,
+      }));
       setActiveIncident(fullIncident);
     } catch (error) {
       console.error("Failed to update report:", error);
@@ -246,23 +300,32 @@ const TriageFeed: React.FC = () => {
       <div className="grid shrink-0 grid-cols-4 border-t border-(--color-border-1) bg-(--color-bg) py-4">
         <StatBlock
           value={mergedReports
-            .filter((r) => r.category === 1)
+            .filter((r) => mapCategoryCodeToType(getReportCategoryInput(r)) === "SOS")
             .length.toString()}
           label="SOS"
           color="text-(--color-red)"
         />
         <StatBlock
-          value={mergedReports.filter((r) => r.status < 4).length.toString()}
+          value={mergedReports
+            .filter((r) => {
+              const slug = mapApiStatusToSlug(r.status);
+              return slug !== "resolved" && slug !== "rejected";
+            })
+            .length.toString()}
           label="Active"
           color="text-(--color-orange)"
         />
         <StatBlock
-          value={mergedReports.filter((r) => r.status === 1).length.toString()}
+          value={mergedReports
+            .filter((r) => mapApiStatusToSlug(r.status) === "submitted")
+            .length.toString()}
           label="New"
           color="text-(--color-text-amber)"
         />
         <StatBlock
-          value={mergedReports.filter((r) => r.status === 4).length.toString()}
+          value={mergedReports
+            .filter((r) => mapApiStatusToSlug(r.status) === "resolved")
+            .length.toString()}
           label="Resolved"
           color="text-(--color-text-green)"
         />

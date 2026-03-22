@@ -3,7 +3,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Send, Truck, X } from "lucide-react";
 import useModalDissolve from "../settings/ui/useModalDissolve";
 import emailjs from "@emailjs/browser";
-import { updateReportStatus } from "@/app/services/reports";
+import { createPortal } from "react-dom";
+import { fetchReportById } from "@/app/features/reports/services/reportsApi";
+import {
+  mapApiStatusToLabel,
+} from "@/app/constants/reportStatus";
 
 const MODAL_EXIT_MS = 260;
 
@@ -87,6 +91,18 @@ const getStatusPillClass = (status: DispatchUnit["status"]) => {
 
 const getSeverityClass = (severity: string) => {
   const normalized = severity.toLowerCase();
+  if (normalized.includes("rejected")) {
+    return "border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red)";
+  }
+  if (normalized.includes("resolved")) {
+    return "border-(--color-green-border) bg-(--color-green-glow) text-(--color-text-green)";
+  }
+  if (normalized.includes("submitted")) {
+    return "border-(--color-border-2) bg-(--color-surface-2) text-(--color-text-3)";
+  }
+  if (normalized.includes("dispatched") || normalized.includes("under review")) {
+    return "border-(--color-orange-border) bg-(--color-orange-glow) text-(--color-orange)";
+  }
   if (normalized.includes("critical") || normalized.includes("sos")) {
     return "border-(--color-red-border) bg-(--color-red-glow) text-(--color-text-red)";
   }
@@ -115,10 +131,53 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [dispatchNote, setDispatchNote] = useState("");
   const [isDispatching, setIsDispatching] = useState(false);
+  const [incidentDetails, setIncidentDetails] = useState<any | null>(null);
+  const [isIncidentLoading, setIsIncidentLoading] = useState(false);
   const selectedUnitIds = useMemo(
     () => new Set(selectedUnits),
     [selectedUnits],
   );
+
+  const incidentSummary = useMemo(() => {
+    const api = incidentDetails;
+    const fallbackCoords = coordinates;
+
+    const lat = api?.reportedAt?.latitude ?? api?.location?.latitude;
+    const lon = api?.reportedAt?.longitude ?? api?.location?.longitude;
+    const hasCoordinates = lat !== undefined && lon !== undefined;
+    const coordinatesLabel = hasCoordinates
+      ? `${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)}`
+      : fallbackCoords;
+
+    const reportedAt = api?.createdAt || api?.dateCreated;
+    const reportedTime = reportedAt
+      ? new Date(reportedAt).toLocaleString([], {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Unknown time";
+
+    return {
+      incidentType: api?.description || incidentType,
+      location:
+        api?.reportedAt?.reverseGeoCode ||
+        api?.location?.reverseGeoCode ||
+        location,
+      coordinates: coordinatesLabel,
+      reporter:
+        api?.reportByName ||
+        api?.reportedBy?.name ||
+        "Unknown reporter",
+      reporterContact:
+        api?.reportByPhoneNumber ||
+        api?.reportedBy?.phoneNumber ||
+        "No contact provided",
+      statusLabel: api ? mapApiStatusToLabel(api.status) : severity,
+      reportedTime,
+    };
+  }, [incidentDetails, coordinates, incidentType, location, severity]);
 
   const closestEta = useMemo(() => {
     // Derived summary metric used by UI header for quick triage scanning.
@@ -137,8 +196,37 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
       setSelectedUnits([]);
       setDispatchNote("");
       setIsDispatching(false);
+      setIncidentDetails(null);
+      setIsIncidentLoading(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    const loadIncidentDetails = async () => {
+      setIsIncidentLoading(true);
+      try {
+        const cleanId = incidentId.replace("RPT-2026-", "");
+        const data = await fetchReportById(cleanId);
+        if (!cancelled) setIncidentDetails(data);
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("Failed to load incident details for dispatch modal", error);
+          setIncidentDetails(null);
+        }
+      } finally {
+        if (!cancelled) setIsIncidentLoading(false);
+      }
+    };
+
+    loadIncidentDetails();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [incidentId, isOpen]);
 
   const toggleUnitSelection = (unitId: string) => {
     setSelectedUnits((prev) =>
@@ -173,14 +261,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
 
       console.log("📧 Dispatch Email Sent");
 
-      // 2. 🟢 Update Backend Status to 'In Progress' (Enum index 2)
-      // Strip "RPT-2026-" if your backend expects the raw UUID
-      const cleanId = incidentId.replace("RPT-2026-", "");
-      await updateReportStatus(cleanId, 2);
-
-      console.log(`✅ Status updated to In Progress for ${cleanId}`);
-
-      // 3. Notify Parent and Close
+      // 2. Notify parent (shared transition service will own status updates).
       onDispatch?.(selectedUnits, dispatchNote.trim());
       onClose();
     } catch (error) {
@@ -192,8 +273,9 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
   };
 
   if (!shouldRender) return null;
+  if (typeof window === "undefined") return null;
 
-  return (
+  const modalContent = (
     <div
       className={`modal-overlay-dissolve fixed inset-0 z-(--z-modal) flex items-center justify-center bg-black/50 p-4 ${
         isVisible ? "is-open" : "is-closed"
@@ -234,22 +316,29 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-(--color-text-1)">
-                  {incidentType}
+                  {incidentSummary.incidentType}
                 </p>
-                <p className="mt-1 text-xs text-(--color-text-3)">{location}</p>
+                <p className="mt-1 text-xs text-(--color-text-3)">{incidentSummary.location}</p>
                 <p className="mt-0.5 text-[11px] text-(--color-text-3)">
-                  {coordinates}
+                  Coordinates: {incidentSummary.coordinates}
+                </p>
+                <p className="mt-0.5 text-[11px] text-(--color-text-3)">
+                  Reporter: {incidentSummary.reporter} • {incidentSummary.reporterContact}
+                </p>
+                <p className="mt-0.5 text-[11px] text-(--color-text-3)">
+                  Reported: {incidentSummary.reportedTime}
                 </p>
               </div>
               <span
-                className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${getSeverityClass(severity)}`}
+                className={`shrink-0 rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${getSeverityClass(incidentSummary.statusLabel)}`}
               >
-                {severity}
+                {incidentSummary.statusLabel}
               </span>
             </div>
             <p className="mt-2 text-[11px] text-(--color-text-3)">
               {availableUnits.length} available • {deployedUnits.length}{" "}
               deployed • closest ETA {closestEta}
+              {isIncidentLoading ? " • Syncing incident details..." : ""}
             </p>
           </div>
 
@@ -388,6 +477,8 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
       </section>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default DispatchUnitModal;

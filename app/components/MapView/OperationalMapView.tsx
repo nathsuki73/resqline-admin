@@ -1,136 +1,250 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import IncidentMap from "../Dashboard/IncidentMap"; // Using your existing map
 import OperationalMapHeader from "./OperationalMapHeader";
 import OperationalSidebar from "./OperationalSideBar";
-import { Search, Layers, LayoutGrid } from "lucide-react";
+import { Search } from "lucide-react";
+import { type IncidentCategoryType } from "@/app/constants/reportCategories";
+import {
+  queueIncidentAction,
+  setActiveIncident,
+  type BridgeIncident,
+} from "../Dashboard/incidentBridge";
+import useModalDissolve from "../settings/ui/useModalDissolve";
+
+const SIDEBAR_EXIT_MS = 360;
+const DEPARTMENT_FILTERS = ["All", "BFP", "CTMO", "PDRRMO", "PNP"] as const;
+
+type IncidentSummary = {
+  total: number;
+  byType: Record<IncidentCategoryType, number>;
+};
+
+const SUMMARY_TYPE_ORDER: IncidentCategoryType[] = [
+  "SOS",
+  "FIRE",
+  "FLOOD",
+  "STRUCTURAL",
+  "MEDICAL",
+  "TRAFFIC",
+  "OTHER",
+];
+
+const SUMMARY_TYPE_META: Record<IncidentCategoryType, { label: string; color: string }> = {
+  SOS: { label: "SOS", color: "bg-(--color-red)" },
+  FIRE: { label: "Fire", color: "bg-(--color-orange)" },
+  FLOOD: { label: "Flood", color: "bg-(--color-blue)" },
+  STRUCTURAL: { label: "Structural", color: "bg-(--color-purple)" },
+  MEDICAL: { label: "Medical", color: "bg-(--color-green)" },
+  TRAFFIC: { label: "Traffic", color: "bg-(--color-amber)" },
+  OTHER: { label: "Other", color: "bg-(--color-text-3)" },
+};
+
+const EMPTY_SUMMARY_TYPES: Record<IncidentCategoryType, number> = {
+  SOS: 0,
+  MEDICAL: 0,
+  TRAFFIC: 0,
+  FIRE: 0,
+  FLOOD: 0,
+  STRUCTURAL: 0,
+  OTHER: 0,
+};
 
 const OperationalMapView = ({ onClose }: { onClose: () => void }) => {
+  const [selectedIncident, setSelectedIncident] =
+    useState<BridgeIncident | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [departmentFilter, setDepartmentFilter] =
+    useState<(typeof DEPARTMENT_FILTERS)[number]>("All");
+  const [showIncidentsLayer, setShowIncidentsLayer] = useState(true);
+  const [summary, setSummary] = useState<IncidentSummary>({
+    total: 0,
+    byType: EMPTY_SUMMARY_TYPES,
+  });
+  const { shouldRender: shouldRenderSidebar, isVisible: isSidebarVisible } =
+    useModalDissolve(selectedIncident !== null, SIDEBAR_EXIT_MS);
+
+  const handleSearchGo = () => {
+    setActiveSearchQuery(searchInput);
+  };
+
+  const handleSearchClear = () => {
+    setSearchInput("");
+    setActiveSearchQuery("");
+  };
+
+  const handleViewFullDetail = () => {
+    if (!selectedIncident) return;
+    setActiveIncident(selectedIncident);
+    onClose();
+  };
+
+  const handleDispatch = () => {
+    if (!selectedIncident) return;
+    setActiveIncident(selectedIncident);
+    queueIncidentAction("dispatch");
+    onClose();
+  };
+
+  const visibleSummaryTypes = SUMMARY_TYPE_ORDER.filter(
+    (type) => (summary.byType[type] ?? 0) > 0,
+  );
+
   return (
-    <div className="relative h-full w-full bg-[#0a0a0a] flex overflow-hidden">
+    <div className="relative flex h-full w-full overflow-hidden bg-(--color-bg)">
       {/* 1. Header Overlay */}
       <OperationalMapHeader />
 
+      <div className="flex h-full w-full pt-16">
+        <div className="relative min-w-0 flex-1">
+
       {/* 2. Left Search & Filter Overlays */}
-      <div className="absolute top-24 left-4 z-20 flex flex-col gap-4 w-64">
+      <div className="absolute top-8 left-4 z-20 flex flex-col gap-4 w-64">
         {/* Search Bar */}
         <div className="relative group">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-(--color-text-3)"
           />
           <input
             type="text"
             placeholder="Search barangay, address..."
-            className="w-full bg-[#121212]/90 border border-gray-800 rounded-lg py-2 pl-10 pr-4 text-xs focus:border-orange-500 focus:outline-none transition-all"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            onKeyPress={(event) => {
+              if (event.key === "Enter") {
+                handleSearchGo();
+              }
+            }}
+            className="w-full rounded-lg border border-(--color-border-2) bg-(--color-surface-1)/90 py-2 pl-10 pr-14 text-xs text-(--color-text-2) placeholder-(--color-text-4) transition-all focus:border-(--color-orange-border) focus:outline-none"
           />
-          <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-orange-600 text-white text-[9px] font-bold px-2 py-1 rounded">
+          {searchInput && (
+            <button
+              type="button"
+              onClick={handleSearchClear}
+              className="absolute right-12 top-1/2 -translate-y-1/2 text-(--color-text-3) hover:text-(--color-text-1) transition-colors"
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSearchGo}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-(--color-orange-border) bg-(--color-orange) px-2 py-1 text-[9px] font-bold text-white hover:bg-(--color-orange-border) transition-colors"
+          >
             GO
           </button>
         </div>
 
         {/* Filters Box */}
-        <div className="bg-[#121212]/90 border border-gray-800 p-4 rounded-xl shadow-2xl">
-          <p className="text-[9px] font-bold text-gray-600 uppercase mb-3">
+        <div className="rounded-xl border border-(--color-border-1) bg-(--color-surface-1)/90 p-4 shadow-2xl">
+          <p className="mb-3 text-[9px] font-bold uppercase text-(--color-text-4)">
             Filter by Department
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
-            {["All", "BFP", "CTMO", "PDRRMO", "PNP"].map((f, i) => (
+            {DEPARTMENT_FILTERS.map((filter) => (
               <button
-                key={f}
-                className={`px-2 py-1 rounded border text-[8px] font-bold ${i === 0 ? "bg-orange-500/20 border-orange-500 text-orange-500" : "border-gray-800 text-gray-500"}`}
+                key={filter}
+                type="button"
+                onClick={() => setDepartmentFilter(filter)}
+                className={`rounded border px-2 py-1 text-[8px] font-bold ${
+                  departmentFilter === filter
+                    ? "border-(--color-orange-border) bg-(--color-orange-glow) text-(--color-orange)"
+                    : "border-(--color-border-2) text-(--color-text-3)"
+                }`}
               >
-                {f}
+                {filter}
               </button>
             ))}
           </div>
-          <p className="text-[9px] font-bold text-gray-600 uppercase mb-3">
+          <p className="mb-3 text-[9px] font-bold uppercase text-(--color-text-4)">
             Show Layers
           </p>
           <div className="flex gap-2">
-            <button className="bg-orange-500/10 border border-orange-500/50 text-orange-500 px-3 py-1 rounded text-[8px] font-bold uppercase">
+            <button
+              type="button"
+              onClick={() => setShowIncidentsLayer((prev) => !prev)}
+              className={`rounded border px-3 py-1 text-[8px] font-bold uppercase ${
+                showIncidentsLayer
+                  ? "border-(--color-orange-border) bg-(--color-orange-glow) text-(--color-orange)"
+                  : "border-(--color-border-2) text-(--color-text-3)"
+              }`}
+            >
               Incidents
             </button>
-            <button className="border border-gray-800 text-gray-500 px-3 py-1 rounded text-[8px] font-bold uppercase">
-              Units
-            </button>
-            <button className="border border-gray-800 text-gray-500 px-3 py-1 rounded text-[8px] font-bold uppercase">
-              Heatmap
-            </button>
           </div>
-        </div>
-      </div>
-
-      {/* 3. Bottom Left Deployed Units Overlay */}
-      <div className="absolute bottom-16 left-4 z-20 w-48 bg-[#121212]/90 border border-gray-800 rounded-xl p-4 shadow-2xl">
-        <p className="text-[9px] font-bold text-gray-600 uppercase mb-3">
-          Deployed Units
-        </p>
-        <div className="space-y-3">
-          <UnitStatus
-            label="BFP-QC-3"
-            status="En Route"
-            color="text-green-500"
-          />
-          <UnitStatus
-            label="BFP-QC-7"
-            status="On Scene"
-            color="text-green-500"
-          />
-          <UnitStatus label="CTMO-1" status="En Route" color="text-blue-500" />
-          <UnitStatus
-            label="PNP-QC-2"
-            status="Standby"
-            color="text-purple-500"
-          />
         </div>
       </div>
 
       {/* 4. Incident Summary Overlay (Floating Right) */}
-      <div className="absolute top-24 right-96 z-20 w-32 bg-[#121212]/90 border border-gray-800 p-3 rounded-xl shadow-2xl">
-        <p className="text-[8px] font-bold text-gray-600 uppercase mb-2">
+      <div className="absolute top-8 right-4 z-20 w-40 rounded-xl border border-(--color-border-1) bg-(--color-surface-1)/90 p-3 shadow-2xl">
+        <p className="mb-2 text-[8px] font-bold uppercase text-(--color-text-4)">
           Summary
         </p>
         <div className="space-y-1">
-          <SummaryLine color="bg-red-500" label="SOS" count="2" />
-          <SummaryLine color="bg-orange-500" label="Fire" count="3" />
-          <SummaryLine color="bg-blue-500" label="Flood" count="1" />
-          <SummaryLine color="bg-green-500" label="Units" count="4" />
+          {visibleSummaryTypes.map((type) => {
+            const meta = SUMMARY_TYPE_META[type];
+            return (
+              <SummaryLine
+                key={type}
+                color={meta.color}
+                label={meta.label}
+                count={String(summary.byType[type] ?? 0)}
+              />
+            );
+          })}
+          <SummaryLine color="bg-(--color-text-2)" label="Total" count={String(summary.total)} />
         </div>
       </div>
 
       {/* 5. The Map Base Layer */}
       <div className="h-full w-full">
-        <IncidentMap />
+        <IncidentMap
+          onIncidentSelect={setSelectedIncident}
+          searchQuery={activeSearchQuery}
+          departmentFilter={departmentFilter}
+          showIncidentsLayer={showIncidentsLayer}
+          onSummaryChange={setSummary}
+          showSelectedOnly={false}
+          autoFitAllVisible={true}
+        />
       </div>
+        </div>
 
-      {/* 6. The Sidebar Panel */}
-      <OperationalSidebar onClose={onClose} />
-
-      {/* 7. Coordinates Footer */}
-      <div className="absolute bottom-4 left-4 z-20 text-[9px] text-gray-600 font-mono">
-        14.6700°N · 121.0437°E · Quezon City
+        {shouldRenderSidebar ? (
+          <div
+            className={`overflow-hidden border-l border-(--color-border-1) transition-[width,transform,opacity] ${
+              isSidebarVisible
+                ? "w-92.5 translate-x-0 opacity-100"
+                : "pointer-events-none w-0 translate-x-3 opacity-0"
+            }`}
+            style={{
+              transitionDuration: `${SIDEBAR_EXIT_MS}ms`,
+              transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+              willChange: "width, transform, opacity",
+            }}
+          >
+            <OperationalSidebar
+              incident={selectedIncident}
+              onClose={() => setSelectedIncident(null)}
+              onViewFullDetail={handleViewFullDetail}
+              onDispatch={handleDispatch}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
 };
 
-// --- Helpers ---
-const UnitStatus = ({ label, status, color }: any) => (
-  <div className="flex items-center justify-between text-[9px] font-bold">
-    <div className="flex items-center gap-2 text-gray-300">
-      <div className="w-1.5 h-1.5 rounded-full bg-gray-700" /> {label}
-    </div>
-    <span className={color}>{status}</span>
-  </div>
-);
-
 const SummaryLine = ({ color, label, count }: any) => (
   <div className="flex items-center justify-between text-[10px]">
-    <div className="flex items-center gap-2 text-gray-400">
-      <div className={`w-1.5 h-1.5 rounded-full ${color}`} /> {label}
+    <div className="flex items-center gap-2 text-(--color-text-3)">
+      <div className={`h-1.5 w-1.5 rounded-full ${color}`} /> {label}
     </div>
-    <span className="text-gray-200 font-bold">{count}</span>
+    <span className="font-bold text-(--color-text-1)">{count}</span>
   </div>
 );
 
