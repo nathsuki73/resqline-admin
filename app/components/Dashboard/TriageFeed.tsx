@@ -54,81 +54,109 @@ const TriageFeed: React.FC = () => {
 
   // Transform raw reports into Feed Item shape with SignalR + API compatibility
   const liveReportItems: ReportFeedItem[] = useMemo(
-    () =>
-      mergedReports.map((r) => {
-        const sourceStatus = mapApiStatusToSlug(r.status);
-        const effectiveStatus = mergeStatusWithoutRegression(
-          statusOverridesById[r.id] ?? sourceStatus,
-          sourceStatus,
-        );
-        const categoryInput = getReportCategoryInput(r);
-        const incidentCategoryName = mapCategoryCodeToType(categoryInput);
+    () => {
+      // 24 hours in ms
+      const now = Date.now();
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      return mergedReports
+        .map((r) => {
+          const sourceStatus = mapApiStatusToSlug(r.status);
+          const effectiveStatus = mergeStatusWithoutRegression(
+            statusOverridesById[r.id] ?? sourceStatus,
+            sourceStatus,
+          );
+          if (effectiveStatus === "rejected") return null;
+          const categoryInput = getReportCategoryInput(r);
+          const incidentCategoryName = mapCategoryCodeToType(categoryInput);
 
-        // 🟢 1. Handle Location Fallback (API uses 'location', SignalR uses 'reportedAt')
-        const lat = r.reportedAt?.latitude || r.location?.latitude;
-        const lon = r.reportedAt?.longitude || r.location?.longitude;
-        const latitude = Number(lat);
-        const longitude = Number(lon);
-        const geoCode =
-          r.reportedAt?.reverseGeoCode || r.location?.reverseGeoCode;
-        const locationString =
-          geoCode ??
-          (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
+          // 1. Handle Location Fallback (API uses 'location', SignalR uses 'reportedAt')
+          const lat = r.reportedAt?.latitude || r.location?.latitude;
+          const lon = r.reportedAt?.longitude || r.location?.longitude;
+          const latitude = Number(lat);
+          const longitude = Number(lon);
+          const geoCode =
+            r.reportedAt?.reverseGeoCode || r.location?.reverseGeoCode;
+          const locationString =
+            geoCode ??
+            (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
 
-        // 🟢 2. Handle Date Fallback (API uses 'createdAt', SignalR uses 'dateCreated')
-        const rawDate = r.createdAt || r.dateCreated;
-        const timeDisplay = rawDate
-          ? new Date(rawDate).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "N/A";
+          // 2. Handle Date Fallback (API uses 'createdAt', SignalR uses 'dateCreated')
+          const rawDate = r.createdAt || r.dateCreated;
+          const timeDisplay = rawDate
+            ? new Date(rawDate).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "N/A";
 
-        return {
-          id: r.id,
-          title: r.description || "No description",
-          location: locationString,
-          time: timeDisplay,
-          type: incidentCategoryName,
-          percentage: "90%",
-          status: mapApiStatusToLabel(effectiveStatus),
-          incident: {
+          // 3. Check resolved time for archiving
+          let resolvedAt: number | null = null;
+          if (effectiveStatus === "resolved") {
+            // Prefer r.resolvedAt, fallback to r.updatedAt, fallback to createdAt
+            resolvedAt = r.resolvedAt
+              ? new Date(r.resolvedAt).getTime()
+              : r.updatedAt
+                ? new Date(r.updatedAt).getTime()
+                : rawDate
+                  ? new Date(rawDate).getTime()
+                  : null;
+            if (resolvedAt && now - resolvedAt > DAY_MS) {
+              // Exclude resolved reports older than 24 hours
+              return null;
+            }
+          }
+
+          return {
             id: r.id,
-            type: incidentCategoryName,
-            incidentType: r.description || "General Incident",
+            title: r.description || "No description",
             location: locationString,
-            latitude: Number.isFinite(latitude) ? latitude : undefined,
-            longitude: Number.isFinite(longitude) ? longitude : undefined,
-
-            reporter: r.reportByName || r.reportedBy?.name || "Unknown",
-            reporterContact:
-              r.reportByPhoneNumber ||
-              r.reportedBy?.phoneNumber ||
-              "No contact provided",
-            aiAnalysis: r.aiProbabilities || {},
-            department: mapCategoryCodeToDepartment(
-              categoryInput,
-            ) as BridgeIncident["department"],
-            severity: (r.status === 1 ? "Critical" : "Medium") as
-              | "Critical"
-              | "High"
-              | "Medium"
-              | "Low",
-            // 🟢 Sync status slug for the Header Progress Bar
-            status: effectiveStatus as BridgeIncident["status"],
-            mobileStatus: mapResponderStatusToMobileStatus(
-              effectiveStatus,
-            ),
             time: timeDisplay,
-            reporterDescription: r.description || "",
-            internalNote: r.internalNote || "",
-            // 🟢 Handle images (SignalR uses 'image' singular array)
-            images: r.image || r.images || [],
-          },
-        };
-      }),
-    [mergedReports, statusOverridesById],
-  );
+            type: incidentCategoryName,
+            percentage: "90%",
+            status: mapApiStatusToLabel(effectiveStatus),
+            incident: {
+              id: r.id,
+              type: incidentCategoryName,
+              incidentType: r.description || "General Incident",
+              location: locationString,
+              latitude: Number.isFinite(latitude) ? latitude : undefined,
+              longitude: Number.isFinite(longitude) ? longitude : undefined,
+              reporter: r.reportByName || r.reportedBy?.name || "Unknown",
+              reporterContact:
+                r.reportByPhoneNumber ||
+                r.reportedBy?.phoneNumber ||
+                "No contact provided",
+              aiAnalysis: r.aiProbabilities || {},
+              department: mapCategoryCodeToDepartment(
+                categoryInput,
+              ) as BridgeIncident["department"],
+              severity: (r.status === 1 ? "Critical" : "Medium") as
+                | "Critical"
+                | "High"
+                | "Medium"
+                | "Low",
+              status: effectiveStatus as BridgeIncident["status"],
+              mobileStatus: mapResponderStatusToMobileStatus(
+                effectiveStatus,
+              ),
+              time: timeDisplay,
+              reporterDescription: r.description || "",
+              internalNote: r.internalNote || "",
+              images: r.image || r.images || [],
+            },
+          };
+        })
+        .filter(Boolean)
+        // Sort: resolved reports at the bottom
+        .sort((a, b) => {
+          const aResolved = a && a.incident.status === "resolved";
+          const bResolved = b && b.incident.status === "resolved";
+          if (aResolved === bResolved) return 0;
+          if (aResolved) return 1;
+          if (bResolved) return -1;
+          return 0;
+        }) as ReportFeedItem[];
+    }, [mergedReports, statusOverridesById]);
 
   // FIXED: Define the missing filteredReportItems variable
   const filteredReportItems = useMemo(() => {

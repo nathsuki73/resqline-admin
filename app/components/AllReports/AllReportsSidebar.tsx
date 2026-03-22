@@ -98,7 +98,8 @@ const AllReportsSidebar = ({
 	const draftLength = focusedDraftNote.trim().length;
 	const statusValue = reportInFocus?.status ?? "submitted";
 	const currentStatusStep = statusStep(statusValue as IncidentStatusSlug);
-	const canDispatch = currentStatusStep >= 1 && currentStatusStep < 3;
+	const canDispatch = statusValue === "under-review";
+	const wasDispatched = statusValue === "in-progress";
 	const canResolve = currentStatusStep === 2;
 
 	return (
@@ -157,14 +158,15 @@ const AllReportsSidebar = ({
 								<button type="button" onClick={onOpenFullView} className="ui-btn ui-btn-primary justify-center px-3 py-2 text-[12px]">
 									 Full View
 								</button>
-								<button
-									type="button"
-									onClick={onOpenDispatch}
-									disabled={!canDispatch || isUpdatingStatus}
-									className="ui-btn ui-btn-secondary justify-center px-3 py-2 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
-								>
-									 Dispatch
-								</button>
+								   <button
+									   type="button"
+									   onClick={canDispatch && !isUpdatingStatus ? onOpenDispatch : undefined}
+									   disabled={!canDispatch || isUpdatingStatus || wasDispatched}
+									   className="ui-btn ui-btn-secondary justify-center px-3 py-2 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
+									   title={wasDispatched ? "This report has already been dispatched." : undefined}
+								   >
+									   {wasDispatched ? "Dispatched" : "Dispatch"}
+								   </button>
 								<button
 									type="button"
 									onClick={onResolve}

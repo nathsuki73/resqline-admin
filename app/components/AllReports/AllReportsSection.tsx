@@ -300,7 +300,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 
 			const matchesStatus =
 				statusFilter === "all"
-					? report.status !== "resolved"
+					? report.status !== "resolved" && report.status !== "rejected"
 					: statusFilter === "archived"
 						? report.status === "resolved"
 						: report.status === statusFilter;

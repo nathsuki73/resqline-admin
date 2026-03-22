@@ -190,12 +190,13 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
   // Inside IncidentHeader.tsx
   const currentStatusStep = useMemo(() => {
     if (!incident) return 0;
-
-    const status = (incident.status?.toLowerCase() ||
-      "submitted") as IncidentStatusSlug;
-
+    const status = (incident.status?.toLowerCase() || "submitted") as IncidentStatusSlug;
     return statusStep(status);
   }, [incident?.status]);
+
+  const statusValue = (incident?.status?.toLowerCase() || "submitted") as IncidentStatusSlug;
+  const canDispatch = statusValue === "under-review";
+  const wasDispatched = statusValue === "in-progress";
 
   if (!incident) return null;
 
@@ -216,12 +217,13 @@ const IncidentHeader = ({ onClearSelection }: { onClearSelection?: () => void })
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => runAction("dispatch")}
-            className="ui-btn ui-btn-primary"
-            disabled={currentStatusStep < 1 || currentStatusStep >= 3}
+            onClick={canDispatch ? () => runAction("dispatch") : undefined}
+            className="ui-btn ui-btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!canDispatch || wasDispatched}
+            title={wasDispatched ? "This report has already been dispatched." : undefined}
           >
             <Send size={14} fill="currentColor" />
-            Dispatch Unit
+            {wasDispatched ? "Dispatched" : "Dispatch Unit"}
           </button>
           <button
             type="button"
