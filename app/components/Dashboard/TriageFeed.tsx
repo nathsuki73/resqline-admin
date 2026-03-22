@@ -13,6 +13,7 @@ import { FeedItem } from "./TriageFeedComponents/FeedItem";
 import { fetchReportById } from "@/app/features/reports/services/reportsApi";
 import {
   getReportCategoryInput,
+  mapCategoryCodeToLabel,
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
   type IncidentCategoryType,
@@ -53,12 +54,12 @@ const TriageFeed: React.FC = () => {
   const { reports: mergedReports, loading } = useReports();
 
   // Transform raw reports into Feed Item shape with SignalR + API compatibility
-  const liveReportItems: ReportFeedItem[] = useMemo(
-    () => {
-      // 24 hours in ms
-      const now = Date.now();
-      const DAY_MS = 24 * 60 * 60 * 1000;
-      return mergedReports
+  const liveReportItems: ReportFeedItem[] = useMemo(() => {
+    // 24 hours in ms
+    const now = Date.now();
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    return (
+      mergedReports
         .map((r) => {
           const sourceStatus = mapApiStatusToSlug(r.status);
           const effectiveStatus = mergeStatusWithoutRegression(
@@ -117,7 +118,7 @@ const TriageFeed: React.FC = () => {
             incident: {
               id: r.id,
               type: incidentCategoryName,
-              incidentType: r.description || "General Incident",
+              incidentType: mapCategoryCodeToLabel(categoryInput),
               location: locationString,
               latitude: Number.isFinite(latitude) ? latitude : undefined,
               longitude: Number.isFinite(longitude) ? longitude : undefined,
@@ -136,9 +137,7 @@ const TriageFeed: React.FC = () => {
                 | "Medium"
                 | "Low",
               status: effectiveStatus as BridgeIncident["status"],
-              mobileStatus: mapResponderStatusToMobileStatus(
-                effectiveStatus,
-              ),
+              mobileStatus: mapResponderStatusToMobileStatus(effectiveStatus),
               time: timeDisplay,
               reporterDescription: r.description || "",
               internalNote: r.internalNote || "",
@@ -155,8 +154,9 @@ const TriageFeed: React.FC = () => {
           if (aResolved) return 1;
           if (bResolved) return -1;
           return 0;
-        }) as ReportFeedItem[];
-    }, [mergedReports, statusOverridesById]);
+        }) as ReportFeedItem[]
+    );
+  }, [mergedReports, statusOverridesById]);
 
   // FIXED: Define the missing filteredReportItems variable
   const filteredReportItems = useMemo(() => {
@@ -328,7 +328,9 @@ const TriageFeed: React.FC = () => {
       <div className="grid shrink-0 grid-cols-4 border-t border-(--color-border-1) bg-(--color-bg) py-4">
         <StatBlock
           value={mergedReports
-            .filter((r) => mapCategoryCodeToType(getReportCategoryInput(r)) === "SOS")
+            .filter(
+              (r) => mapCategoryCodeToType(getReportCategoryInput(r)) === "SOS",
+            )
             .length.toString()}
           label="SOS"
           color="text-(--color-red)"

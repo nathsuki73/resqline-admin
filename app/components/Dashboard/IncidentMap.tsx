@@ -1,11 +1,16 @@
 "use client";
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import Map, { Marker, NavigationControl, type MapRef } from "react-map-gl/mapbox";
+import Map, {
+  Marker,
+  NavigationControl,
+  type MapRef,
+} from "react-map-gl/mapbox";
 import { Loader2 } from "lucide-react";
 import { useReports } from "@/app/hooks/useReports";
 import {
   getReportCategoryInput,
   type IncidentCategoryType,
+  mapCategoryCodeToLabel,
   mapCategoryCodeToDepartment,
   mapCategoryCodeToType,
 } from "@/app/constants/reportCategories";
@@ -41,9 +46,12 @@ const isValidLatitude = (value: number): boolean =>
 const isValidLongitude = (value: number): boolean =>
   Number.isFinite(value) && value >= -180 && value <= 180;
 
-const mapCategoryToSeverity = (category: unknown): BridgeIncident["severity"] => {
+const mapCategoryToSeverity = (
+  category: unknown,
+): BridgeIncident["severity"] => {
   const type = mapCategoryCodeToType(category);
-  if (type === "SOS" || type === "FIRE" || type === "MEDICAL") return "Critical";
+  if (type === "SOS" || type === "FIRE" || type === "MEDICAL")
+    return "Critical";
   if (type === "TRAFFIC" || type === "FLOOD") return "High";
   return "Medium";
 };
@@ -119,7 +127,7 @@ const IncidentMap: React.FC<{
           type: incidentCategoryName,
           incident: {
             id: String(r.id || r._id || ""),
-            incidentType: r.description || "General Incident",
+            incidentType: mapCategoryCodeToLabel(categoryInput),
             location: locationString,
             latitude: isValidLatitude(lat) ? lat : undefined,
             longitude: isValidLongitude(lng) ? lng : undefined,
@@ -264,7 +272,8 @@ const IncidentMap: React.FC<{
         const geoCode =
           report.reportedAt?.reverseGeoCode || report.location?.reverseGeoCode;
         const locationString =
-          geoCode ?? (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
+          geoCode ??
+          (lat && lon ? `Lat ${lat}, Lon ${lon}` : "Unknown Location");
 
         const searchTarget = [
           report.description || "",
@@ -277,7 +286,9 @@ const IncidentMap: React.FC<{
 
         return searchTarget.includes(normalizedSearch);
       })
-      .map((report: any) => mapCategoryCodeToType(getReportCategoryInput(report)));
+      .map((report: any) =>
+        mapCategoryCodeToType(getReportCategoryInput(report)),
+      );
   }, [reports, searchQuery, departmentFilter]);
 
   useEffect(() => {
@@ -497,38 +508,40 @@ const IncidentMap: React.FC<{
         <NavigationControl position="bottom-right" />
 
         {showIncidentsLayer
-          ? visibleIncidents.map((incident) => (
-          (() => {
-            const markerStyle = getCategoryMarkerStyle(incident.incident.type);
-            return (
-          <Marker
-            key={incident.id}
-            latitude={incident.lat}
-            longitude={incident.lng}
-            anchor="bottom"
-          >
-            <button
-              type="button"
-              onClick={() => onIncidentSelect?.(incident.incident)}
-              className="group flex cursor-pointer flex-col items-center"
-            >
-              <div
-                className={`relative h-5 w-5 rounded-full ring-4 shadow-xl border-2 border-white/20 ${markerStyle.marker}`}
-              >
-                {incident.incident.status !== "resolved" && (
-                  <span
-                    className={`absolute inset-0 animate-ping rounded-full opacity-75 ${markerStyle.ping}`}
-                  ></span>
-                )}
-              </div>
-              <div className="mt-2 whitespace-nowrap rounded border border-(--color-border-1) bg-black/90 px-2 py-1 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                {incident.label}
-              </div>
-            </button>
-          </Marker>
-            );
-          })()
-            ))
+          ? visibleIncidents.map((incident) =>
+              (() => {
+                const markerStyle = getCategoryMarkerStyle(
+                  incident.incident.type,
+                );
+                return (
+                  <Marker
+                    key={incident.id}
+                    latitude={incident.lat}
+                    longitude={incident.lng}
+                    anchor="bottom"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onIncidentSelect?.(incident.incident)}
+                      className="group flex cursor-pointer flex-col items-center"
+                    >
+                      <div
+                        className={`relative h-5 w-5 rounded-full ring-4 shadow-xl border-2 border-white/20 ${markerStyle.marker}`}
+                      >
+                        {incident.incident.status !== "resolved" && (
+                          <span
+                            className={`absolute inset-0 animate-ping rounded-full opacity-75 ${markerStyle.ping}`}
+                          ></span>
+                        )}
+                      </div>
+                      <div className="mt-2 whitespace-nowrap rounded border border-(--color-border-1) bg-black/90 px-2 py-1 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        {incident.label}
+                      </div>
+                    </button>
+                  </Marker>
+                );
+              })(),
+            )
           : null}
       </Map>
     </div>

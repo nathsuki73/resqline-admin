@@ -16,7 +16,10 @@ export enum Category {
   MedicalEmergency = 2,
 }
 
-export const INCIDENT_CATEGORY_OPTIONS: Array<{ label: string; value: string }> = [
+export const INCIDENT_CATEGORY_OPTIONS: Array<{
+  label: string;
+  value: string;
+}> = [
   { label: "Select Category", value: "" },
   { label: "Traffic Accident", value: "traffic accident" },
   { label: "Fire Incident", value: "fire incident" },
@@ -41,7 +44,8 @@ export const getReportCategoryInput = (report: unknown): unknown => {
 
   for (const candidate of candidates) {
     if (candidate === null || candidate === undefined) continue;
-    if (typeof candidate === "string" && candidate.trim().length === 0) continue;
+    if (typeof candidate === "string" && candidate.trim().length === 0)
+      continue;
     return candidate;
   }
 
@@ -63,22 +67,36 @@ const normalizeCategoryInput = (category: unknown): string => {
   return raw.replace(/[_-]+/g, " ").replace(/\s+/g, " ");
 };
 
-export const mapCategoryCodeToType = (category: unknown): IncidentCategoryType => {
+export const mapCategoryCodeToType = (
+  category: unknown,
+): IncidentCategoryType => {
   const normalized = normalizeCategoryInput(category);
 
-  if (normalized === String(Category.TrafficAccident) || normalized === "traffic accident") {
+  if (
+    normalized === String(Category.TrafficAccident) ||
+    normalized === "traffic accident"
+  ) {
     return "TRAFFIC";
   }
-  if (normalized === String(Category.FireIncident) || normalized === "fire incident") {
+  if (
+    normalized === String(Category.FireIncident) ||
+    normalized === "fire incident"
+  ) {
     return "FIRE";
   }
   if (normalized === String(Category.Flooding) || normalized === "flooding") {
     return "FLOOD";
   }
-  if (normalized === String(Category.StructuralDamage) || normalized === "structural damage") {
+  if (
+    normalized === String(Category.StructuralDamage) ||
+    normalized === "structural damage"
+  ) {
     return "STRUCTURAL";
   }
-  if (normalized === String(Category.MedicalEmergency) || normalized === "medical emergency") {
+  if (
+    normalized === String(Category.MedicalEmergency) ||
+    normalized === "medical emergency"
+  ) {
     return "MEDICAL";
   }
   if (
@@ -95,6 +113,18 @@ export const mapCategoryCodeToType = (category: unknown): IncidentCategoryType =
   }
 
   return "OTHER";
+};
+
+export const mapCategoryCodeToLabel = (category: unknown): string => {
+  const type = mapCategoryCodeToType(category);
+
+  if (type === "SOS") return "SOS";
+  if (type === "MEDICAL") return "Medical Emergency";
+  if (type === "TRAFFIC") return "Traffic Accident";
+  if (type === "FIRE") return "Fire Incident";
+  if (type === "FLOOD") return "Flooding";
+  if (type === "STRUCTURAL") return "Structural Damage";
+  return "General Incident";
 };
 
 export const mapCategoryCodeToDepartment = (
