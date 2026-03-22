@@ -179,6 +179,7 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
         api?.reportByPhoneNumber ||
         api?.reportedBy?.phoneNumber ||
         "No contact provided",
+      reporterDescription: api?.description || "",
       statusLabel: api ? mapApiStatusToLabel(api.status) : severity,
       reportedTime,
     };
@@ -258,6 +259,9 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
         incidentId: incidentId, // e.g. "RPT-2026-..."
         incidentType: incidentType,
         location: location,
+        reporterDescription:
+          incidentSummary.reporterDescription ||
+          "No reporter description provided.",
         appUrl: process.env.NEXT_PUBLIC_URL,
         units: selectedUnits.join(", "),
         note: dispatchNote || "No additional instructions.",
