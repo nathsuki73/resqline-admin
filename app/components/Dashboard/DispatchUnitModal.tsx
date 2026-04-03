@@ -6,8 +6,10 @@ import emailjs from "@emailjs/browser";
 import { createPortal } from "react-dom";
 import { fetchReportById } from "@/app/features/reports/services/reportsApi";
 import {
-  mapApiStatusToLabel,
-} from "@/app/constants/reportStatus";
+  getReportCategoryInput,
+  mapCategoryCodeToLabel,
+} from "@/app/constants/reportCategories";
+import { mapApiStatusToLabel } from "@/app/constants/reportStatus";
 
 const MODAL_EXIT_MS = 260;
 
@@ -100,7 +102,10 @@ const getSeverityClass = (severity: string) => {
   if (normalized.includes("submitted")) {
     return "border-(--color-border-2) bg-(--color-surface-2) text-(--color-text-3)";
   }
-  if (normalized.includes("dispatched") || normalized.includes("under review")) {
+  if (
+    normalized.includes("dispatched") ||
+    normalized.includes("under review")
+  ) {
     return "border-(--color-orange-border) bg-(--color-orange-glow) text-(--color-orange)";
   }
   if (normalized.includes("critical") || normalized.includes("sos")) {
@@ -160,20 +165,21 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
       : "Unknown time";
 
     return {
-      incidentType: api?.description || incidentType,
+      incidentType: api
+        ? mapCategoryCodeToLabel(getReportCategoryInput(api))
+        : incidentType,
       location:
         api?.reportedAt?.reverseGeoCode ||
         api?.location?.reverseGeoCode ||
         location,
       coordinates: coordinatesLabel,
       reporter:
-        api?.reportByName ||
-        api?.reportedBy?.name ||
-        "Unknown reporter",
+        api?.reportByName || api?.reportedBy?.name || "Unknown reporter",
       reporterContact:
         api?.reportByPhoneNumber ||
         api?.reportedBy?.phoneNumber ||
         "No contact provided",
+      reporterDescription: api?.description || "",
       statusLabel: api ? mapApiStatusToLabel(api.status) : severity,
       reportedTime,
     };
@@ -213,7 +219,10 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
         if (!cancelled) setIncidentDetails(data);
       } catch (error) {
         if (!cancelled) {
-          console.warn("Failed to load incident details for dispatch modal", error);
+          console.warn(
+            "Failed to load incident details for dispatch modal",
+            error,
+          );
           setIncidentDetails(null);
         }
       } finally {
@@ -240,16 +249,27 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
     if (selectedUnits.length === 0) return;
     setIsDispatching(true);
 
+    const coords = incidentSummary.coordinates;
+
+    // Construct the Google Maps Link
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coords)}`;
+
     try {
       const templateParams = {
         incidentId: incidentId, // e.g. "RPT-2026-..."
         incidentType: incidentType,
         location: location,
+        reporterDescription:
+          incidentSummary.reporterDescription ||
+          "No reporter description provided.",
         appUrl: process.env.NEXT_PUBLIC_URL,
         units: selectedUnits.join(", "),
         note: dispatchNote || "No additional instructions.",
-        email: "nathskiiii@gmail.com",
+        email: "w.w.w.o.f.f.i.c.i.a.l0@gmail.com",
+        mapUrl: googleMapsUrl,
       };
+
+      console.log("Dispatch EmailJS template params:", templateParams);
 
       // 1. Send Email
       await emailjs.send(
@@ -318,12 +338,15 @@ const DispatchUnitModal: React.FC<DispatchUnitModalProps> = ({
                 <p className="truncate text-sm font-semibold text-(--color-text-1)">
                   {incidentSummary.incidentType}
                 </p>
-                <p className="mt-1 text-xs text-(--color-text-3)">{incidentSummary.location}</p>
+                <p className="mt-1 text-xs text-(--color-text-3)">
+                  {incidentSummary.location}
+                </p>
                 <p className="mt-0.5 text-[11px] text-(--color-text-3)">
                   Coordinates: {incidentSummary.coordinates}
                 </p>
                 <p className="mt-0.5 text-[11px] text-(--color-text-3)">
-                  Reporter: {incidentSummary.reporter} • {incidentSummary.reporterContact}
+                  Reporter: {incidentSummary.reporter} •{" "}
+                  {incidentSummary.reporterContact}
                 </p>
                 <p className="mt-0.5 text-[11px] text-(--color-text-3)">
                   Reported: {incidentSummary.reportedTime}
