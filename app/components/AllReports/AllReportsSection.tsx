@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ChevronDown, FileText, Search } from "lucide-react";
 
 import useModalDissolve from "../settings/ui/useModalDissolve";
@@ -508,7 +508,7 @@ export default function AllReportsSection({
     URL.revokeObjectURL(url);
   };
 
-  const openReportDetails = async (reportId: string) => {
+  const openReportDetails = useCallback(async (reportId: string) => {
     setActiveReportId(reportId);
     setNoteSaveStateByReportId((prev) => ({
       ...prev,
@@ -526,7 +526,7 @@ export default function AllReportsSection({
     } catch (error) {
       console.error("Failed to fetch report details:", error);
     }
-  };
+  }, []);
 
   const closeReportDetails = () => {
     setActiveReportId(null);
