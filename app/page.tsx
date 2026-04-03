@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import AlertsSection from "./components/settings/AlertsSection";
 import AllReportsSection from "./components/AllReports/AllReportsSection";
+import IncomingReportToast from "./components/Dashboard/IncomingReportToast";
 import ResponderDashboardShell from "./components/Dashboard/ResponderDashboard";
+import { fetchBridgeIncidentById } from "./components/Dashboard/reportBridge";
+import { setActiveIncident } from "./components/Dashboard/incidentBridge";
 import DisplaySection from "./components/settings/DisplaySection";
 import ProfileSection from "./components/settings/ProfileSection";
 import RolesSection from "./components/settings/RolesSection";
@@ -23,6 +26,19 @@ export default function ResponderDashboard() {
     useState<string>("profile-account");
 
   const { reports } = useReports();
+
+  const handleViewIncomingReport = async (reportId: string) => {
+    try {
+      const incident = await fetchBridgeIncidentById(reportId);
+      if (!incident) return;
+
+      setActivePanel("triage");
+      setActiveTriageItem("dashboard");
+      setActiveIncident(incident);
+    } catch (error) {
+      console.error("Failed to open incoming report:", error);
+    }
+  };
 
   const hasSosAlerts = useMemo(() => {
     const isSosReport = (report: any) => {
@@ -77,6 +93,7 @@ export default function ResponderDashboard() {
 
   return (
     <div className="flex flex-row pl-16">
+      <IncomingReportToast onViewReport={handleViewIncomingReport} />
       <SideNav
         activePanel={activePanel}
         activeTriageItem={activeTriageItem}

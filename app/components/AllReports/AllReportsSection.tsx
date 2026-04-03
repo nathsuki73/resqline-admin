@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	AlertTriangle,
 	ChevronDown,
@@ -217,7 +217,11 @@ const mapApiReportToIncidentReport = (report: any): IncidentReport => {
 	};
 };
 
-export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard?: () => void }) {
+export default function AllReportsSection({
+	onOpenDashboard,
+}: {
+	onOpenDashboard?: () => void;
+}) {
 	const { reports: apiReports, loading: reportsLoading, mutate } = useReports();
 	const [reports, setReports] = useState<IncidentReport[]>([]);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -438,7 +442,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		URL.revokeObjectURL(url);
 	};
 
-	const openReportDetails = async (reportId: string) => {
+	const openReportDetails = useCallback(async (reportId: string) => {
 		setActiveReportId(reportId);
 		setNoteSaveStateByReportId((prev) => ({ ...prev, [reportId]: prev[reportId] ?? "saved" }));
 
@@ -449,7 +453,7 @@ export default function AllReportsSection({ onOpenDashboard }: { onOpenDashboard
 		} catch (error) {
 			console.error("Failed to fetch report details:", error);
 		}
-	};
+	}, []);
 
 	const closeReportDetails = () => {
 		setActiveReportId(null);

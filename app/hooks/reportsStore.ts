@@ -33,6 +33,8 @@ export const REPORTS_SYNC_EVENT = "resqline:reports-sync";
 
 type SyncReason =
   | "api-load"
+  | "realtime-create"
+  | "realtime-status"
   | "realtime"
   | "optimistic-transition"
   | "transition-reconcile"
@@ -89,7 +91,14 @@ export const subscribeReportsState = (listener: () => void) => {
 };
 
 export const ingestRealtimeReport = (report: unknown) => {
-  mergeIntoState([report], "realtime");
+  ingestRealtimeReportWithReason(report, "realtime");
+};
+
+export const ingestRealtimeReportWithReason = (report: unknown, reason: SyncReason) => {
+  const reportLike = report as { id?: unknown; _id?: unknown };
+  const reportId = normalizeReportId(reportLike?.id ?? reportLike?._id) || undefined;
+
+  mergeIntoState([report], reason, undefined, reportId);
 };
 
 export const applyOptimisticTransition = (
